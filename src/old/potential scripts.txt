@@ -1,0 +1,7 @@
+set up dataframes (for all tubes)
+set up moisture (target values)
+
+import and distill setup material values
+import and distill sample + standard values
+
+process.....

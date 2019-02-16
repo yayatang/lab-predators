@@ -1,0 +1,4 @@
+in total 4 tubes have been deleted
+so it's the number of samplings times 144 minus 4
+
+=4316
