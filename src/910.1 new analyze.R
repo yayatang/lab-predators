@@ -33,20 +33,17 @@ trt_data <- data_orig
 all_summ <- tibble()
 
 for (i in 1:length(all_trt)){
-  
-  trt_2sum <- all_trt[[i]]
-  
-  # summ_trtmt <- function(trt_data, trt_2sum){
+  # summ_trtmt <- function(trt_data, all_trt[[i]]){
   summ_data <- trt_data %>%
-    filter(trt == trt_2sum) %>%
+    filter(trt == all_trt[[i]]) %>%
     select(phase, incub_count, rep, samp_co2_perday) %>%
     group_by(phase, incub_count)%>%
     summarise_at(vars(samp_co2_perday),funs(mean(., na.rm = TRUE), se))
   # }
   
   # multi_means <- function(summarized, trt){
-  mean_var <- paste(trt_2sum, "mean", sep="_")
-  se_var <- paste(trt_2sum, "se", sep="_")
+  mean_var <- paste(all_trt[[i]], "mean", sep="_")
+  se_var <- paste(all_trt[[i]], "se", sep="_")
   summ_data <- summ_data %>%
     mutate(!!mean_var := mean,
            !!se_var := se) %>%
@@ -58,14 +55,10 @@ for (i in 1:length(all_trt)){
 # colSums(is.na(all_data))
 
 
-
-
-
-
 net_data <- merge(data_orig, ctrl_data_unsummarised, by=c('incub_count')) %>%
   mutate(diff_perday_C = samp_co2_perday - ctrl_avg)
 
-diff_data_unsummarised <- diff_data_unsummarised %>%
+net_data <- diff_data_unsummarised %>%
   mutate(trt_ID=paste0(as.character(trt)))
 
 irga_days <- data.frame(incub_count = unique(diff_data_unsummarised$incub_count)) %>% arrange(incub_count)

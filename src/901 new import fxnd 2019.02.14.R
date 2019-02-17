@@ -19,10 +19,11 @@ file_list <- list.files(path=here::here("data/IRGA/raw"), pattern="*.csv", full.
 all_samp <- lapply(file_list, get_info)
 
 all_samp2 <- bind_rows(all_samp) %>%
-  arrange(phase, incub_count)
+  arrange(phase, incub_count) %>%
+  select(-rep)
 
 trt_index <- read.csv(here::here('data/IRGA prep/00_trt_index.csv'))
-all_data <- left_join(all_samp2, trt_index, by=c('sampleID', 'rep'))
+all_data <- left_join(all_samp2, trt_index, by=c('sampleID'))
 
 switch_list <- read_csv(here::here('data/tubes_switch.csv'))
 switch_phase <- 1
