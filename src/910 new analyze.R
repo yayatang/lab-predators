@@ -62,7 +62,7 @@ control_lookup <- data2_clean %>%
   rename(ctrl_mean = mean) %>% 
   arrange(exp_count) %>% 
   mutate(ctrl_se = na.approx(se))
-  
+
 ctrl_infer <- as_tibble(expand.grid(exp_count = all_days)) %>% 
   left_join(control_lookup, by=c('exp_count')) %>% 
   arrange(exp_count) %>% 
@@ -91,10 +91,8 @@ data6_cumul <- data5_inferred %>%
   group_by(sampleID) %>% 
   arrange(exp_count) %>% 
   mutate(by_tube_diff_cumul = cumsum(infer_tube_diff_daily),
-         by_tube_total_cumul = cumsum(infer_tube_total_daily),
-         check_diff_from_ctrl = by_tube_total_cumul - by_tube_diff_cumul) %>% 
+         by_tube_total_cumul = cumsum(infer_tube_total_daily)) %>% 
   left_join(ctrl_infer[,c('exp_count', 'ctrl_cumul')], by=c('exp_count')) # %>% 
-  # select(sampleID, exp_count, by_tube_total_cumul, by_tube_diff_cumul, check_diff_from_ctrl, ctrl_cumul, everything())
 
 data7_filled <- data6_cumul %>% 
   left_join(tube_trt_info, all.x=TRUE, by=c("sampleID")) %>%
@@ -129,7 +127,7 @@ daily_plot <- function(graph_unit, graph_data, max_p1) {
   if(graph_unit==1){
     user_input <- readline("Which treatment?")  
     trt_to_plot <- as.character(user_input)
-  
+    
     graph_data <- filter(graph_data, trt==trt_to_plot)
     
     plot_by_tube <- ggplot(graph_data, aes(exp_count, infer_tube_diff_daily, color=sampleID)) +
@@ -158,85 +156,91 @@ daily_plot <- function(graph_unit, graph_data, max_p1) {
 
 daily_plot(1, data8_to_graph, max_p1)
 
-# think about whether it's obvious when there are geom_point and when there arent..
-summarize_replicates <- function(trt_2sum, clean_data) {
-  summ_data <- clean_data %>%
-    filter(trt == trt_2sum) %>%
-    select(exp_count, rep, tube_perday) %>%
-    group_by(exp_count)%>%
-    summarize_at(vars(tube_perday),funs(mean(., na.rm = TRUE), se)) %>% 
-    ungroup()
+all_plots <- function(graph_data, max_p1) {
   
-  summ_data %>% mutate(trt = trt_2sum)
+  graph_data <- data8_to_graph
+  
+  var_to_graph <- c('infer_tube_total_daily',
+                    'by_tube_total_cumul',
+                    'infer_tube_diff_daily',
+                    'by_tube_diff_cumul',
+                    'by_trt_daily_mean',
+                    'by_trt_cumul_mean')
+  se_to_graph <- c(rep(c('ctrl_se'),4),
+                   'by_trt_daily_se',
+                   'by_trt_cumul_se')
+  graph_group <- c(rep(c('sampleID'),4), rep(c('trt'),2))
+  y_titles <- rep(c('Daily CO2-C','Cumulative CO2-C'),3)
+  plot_titles <- c('Daily CO2 Total by Tube',
+                   'Cumulative CO2 Total by Tube',
+                   'Daily CO2 Difference fron Ctrl by Tube',
+                   'Cumulative CO2 Difference by Tube',
+                   'Daily CO2 Difference by Treatment',
+                   'Cumulative CO2 Difference by Treatment')
+  dynamic_data <- tibble(var_to_graph, se_to_graph, graph_group, y_titles, plot_titles)
+  
+  # graph_data
+  #   exp_count
+  #   var to graph
+  #   sampleID
+  #   se var
+  #   y axis title
+  #   graph overall title
+  #   
+  #   1 = daily total by tube
+  #   2 = cumul total by tube
+  #   3 = daily diff by tube
+  #   4 = cumul diff by tube
+  #   5 = daily diff by treatment mean
+  #   6 = cumul diff by treatment mean
+  #     
+  #   infer_tube_total_daily
+  #   infer_tube_diff_daily
+  #   by_tube_diff_cumul
+  #   by_tube_total_cumul
+  #   by_trt_daily_mean (+ by_trt_daily_se)
+  #   by_trt_cumul_mean (+ by_trt_cumul_se)
+  
+  # all_plots <- htmltools::tagList()
+  
+  # for (i in seq_along(length(dynamic_data))){
+    i <- 6
+    selected_data <- graph_data %>% 
+      select(sampleID, exp_count, trt, rep, !!dynamic_data$var_to_graph[[i]], 
+             !!dynamic_data$se_to_graph[[i]], !!dynamic_data$graph_group[[i]])
+    renamed_data <- selected_data %>% 
+      rename(graph_yvar = !!dynamic_data$var_to_graph[[i]],
+             graph_se = !!dynamic_data$se_to_graph[[i]])
+    
+    if (i >= 5) {
+      plot_data <- renamed_data %>% 
+        ungroup() %>% 
+        filter(rep==1) %>% 
+        rename(graph_unit = trt) %>% 
+        select(-sampleID, -rep)
+      
+    } else {
+      plot_data <- renamed_data %>%
+        rename(graph_unit = sampleID) %>% 
+        select(-trt)}
+    
+    any_plot <- ggplot(plot_data, aes(exp_count, graph_yvar, color=graph_unit)) +
+      # facet_grid(~phase, scales="free") +
+      geom_vline(xintercept=max_p1) +
+      geom_hline(yintercept=0) +
+      geom_line(size=0.5) +
+      geom_point(size=0.7) +
+      geom_errorbar(aes(ymin = graph_yvar - graph_se,
+                        ymax = graph_yvar + graph_se), 
+                    width=0.3) +
+      labs(x="Experimental days lapsed", y=dynamic_data$y_titles[[i]]) +
+      ggtitle(paste(dynamic_data$plot_titles[[i]]))
+  
+    ggsave(paste0(i,'by_', dynamic_data$graph_group[i], '.pdf'), width=10, height=7.5, dpi=400)
+    
+    ggplotly(any_plot)
+    # all_plots[[i]] <- as_widget(ggplotly(any_plot))
+    all_plots[[i]] <- any_plot
+  # }
 }
-
-# to average replicates of each treatment per sampling day
-data7_summarized <- map_dfr(all_trt, summarize_replicates, clean_data = data1_orig) %>%
-  rename(gross_mean = mean, se_reps = se) %>%
-  left_join(control_lookup, by=c("exp_count")) %>%
-  mutate(net_mean = gross_mean - ctrl_mean)
-
-
-
-gross_plots <- ggplot(setup_filled_data, aes(exp_count, gross_mean, color=trt)) +
-  # facet_grid(~phase, scales="free") +
-  geom_line(aes(group=trt), size=0.5) +
-  geom_vline(xintercept=max_p1) +
-  geom_hline(yintercept=0) +
-  geom_point(size=0.7) +
-  geom_errorbar(aes(ymin=gross_mean-se_reps, ymax=gross_mean+se_reps), width=0.3) +
-  geom_hline(yintercept=0) +
-  labs(x="Day per phase", y="Daily CO2-C") +
-  ggtitle(paste('Daily CO2-C gross values'))
-ggplotly(gross_plots)
-
-
-
-# # this is the plot for daily trt vals, both phases
-# new_plot <- ggplot(data=graph_data, aes(x=incub_count, y=net_mean, group=trt, color=trt))+
-#   facet_grid(~phase, scales="free") +
-#   geom_point()+
-#   geom_line(aes(group=trt))+
-#   geom_errorbar(aes(ymin = net_mean - se_reps, ymax= net_mean + se_reps), width=0.3) +
-#   scale_color_brewer(palette = "Paired")+
-#   ggtitle(paste("Daily C summarized by treatment"))
-# ggplotly(new_plot)
-
-# interpolate samples
-
-
-graph_data <- setup_filled_data %>%
-  filter(trt != 'R')
-
-daily_min <- min(graph_data$net_mean)
-daily_max <- max(graph_data$net_mean)
-
-daily_plots <- ggplot(graph_data, aes(exp_count, net_mean, ymin=daily_min, ymax=daily_max, color=trt)) +
-  # facet_grid(~phase, scales="free") +
-  geom_line(aes(group=trt), size=0.5) +
-  geom_vline(xintercept = max_p1) +
-  geom_hline(yintercept=0) +
-  geom_point(size=0.7) +
-  geom_errorbar(aes(ymin=net_mean-se_reps, ymax=net_mean+se_reps), width=0.3) +
-  geom_hline(yintercept=0) +
-  labs(x="Day per phase", y="Daily CO2-C") +
-  ggtitle(paste('Daily CO2-C difference from C'))
-ggplotly(daily_plots)
-
-
-# ==========================================================================
-
-cumul_min <- min(graph_data$net_mean)
-cumul_max <- max(graph_data$net_mean)
-
-cumul_plots <- ggplot(cumul_graph, aes(exp_count, interp_cumul, ymin=cumul_min, ymax=cumul_max, color=trt)) +
-  # facet_grid(.~phase, space="free_x") +
-  geom_line(size=0.5) +
-  geom_vline(xintercept=max_p1) +
-  geom_hline(yintercept=0) +
-  geom_point(size=0.7) +
-  geom_errorbar(aes(ymin=interp_cumul-se_reps, ymax=interp_cumul+se_reps), width=0.3) +
-  geom_hline(yintercept=0) +
-  labs(x="Experiment day", y="Cumulative CO2-C") +
-  ggtitle(paste('Cumulative CO2-C'))
-ggplotly(cumul_plots)
+# map_call(all_plots, ggplotly)
