@@ -50,7 +50,22 @@ data1_orig$samp_co2_total <- data1_orig$samp_by_std * co2c_const / data1_orig$ac
 data1_orig$samp_co2_rate <- data1_orig$samp_co2_total / data1_orig$incub_hours
 data1_orig <- mutate(data1_orig, tube_perday = samp_co2_rate*24)
 
-data2_clean <- data1_orig %>% 
+amendments_raw <- read_csv('data/IRGA prep/00_trt_mass.csv')
+colnames(amendments_raw) <- c('trt', 'rep', 'before', 'after')
+amendments_raw$trt <- as.factor(amendments_raw$trt)
+amendments_raw$rep <- as.numeric(amendments_raw$rep)
+amendments_orig <- amendments_raw %>% 
+  left_join(tube_trt_info, all.x=TRUE, by=c('trt', 'rep')) %>%
+  mutate(amend_mass = after - before)
+
+amendments_orig$amend_mass[is.na(amendments_orig$amend_mass)] <- 1
+amendments_clean <- amendments_orig %>% 
+  select(sampleID, amend_mass)
+
+data1_amends <- inner_join(data1_orig, amendments_clean, by=c('sampleID'))
+data1_amends$tube_perday <- data1_amends$tube_perday/data1_amends$amend_mass
+
+data2_clean <- data1_amends %>% 
   rename(phase_count = incub_count) %>% 
   select('sampleID', 'exp_count', 'phase', 'phase_count', 'trt', 'rep', 'tube_perday')
 
@@ -117,6 +132,7 @@ all_summarized_by_trt <- full_join(summ_by_trt_daily, summ_by_trt_cumul, by=c('t
 
 data8_to_graph <- left_join(data7_filled, all_summarized_by_trt, by=c('trt', 'exp_count'))
 
+# for one plot with conditional to make it tube vs trt
 daily_plot <- function(graph_unit, graph_data, max_p1) {
   # unit 1 = tube
   # unit 2 = treatment
@@ -158,7 +174,10 @@ daily_plot(1, data8_to_graph, max_p1)
 
 all_plots <- function(graph_data, max_p1) {
   
-  graph_data <- data8_to_graph
+  graph_data <- data8_to_graph %>% 
+    filter(trt!='R',
+           trt!='WS',
+           trt!='MR')
   
   var_to_graph <- c('infer_tube_total_daily',
                     'by_tube_total_cumul',
@@ -236,11 +255,12 @@ all_plots <- function(graph_data, max_p1) {
       labs(x="Experimental days lapsed", y=dynamic_data$y_titles[[i]]) +
       ggtitle(paste(dynamic_data$plot_titles[[i]]))
   
-    ggsave(paste0(i,'by_', dynamic_data$graph_group[i], '.pdf'), width=10, height=7.5, dpi=400)
+    ggsave(paste0(i,'by_', dynamic_data$graph_group[i], 'with_amends_NO.WS.ME_.pdf'), width=10, height=7.5, dpi=400)
     
     ggplotly(any_plot)
     # all_plots[[i]] <- as_widget(ggplotly(any_plot))
     all_plots[[i]] <- any_plot
   # }
 }
+
 # map_call(all_plots, ggplotly)
