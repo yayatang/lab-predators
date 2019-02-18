@@ -138,7 +138,7 @@ master_sampling <- left_join(arr_samp, std_all, by = c('date_for_std'='mean_time
   # select(sampleID, phase, incub_count, date_msre, std_vector, integral, inject_num, incub_time)
   # select(-tube_num, -position, -rack)
 
-write.csv(master_sampling, file=here::here('indiv_samp.csv'))
+write.csv(master_sampling, file=here::here('results/indiv_samp.csv'))
 
 
 # ============================================================================

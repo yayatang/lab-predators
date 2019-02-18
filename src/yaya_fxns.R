@@ -1,27 +1,29 @@
 ## yaya.fxns
 
-
 se <- function(vals_err_calc){
   # assume length = number of obs
   # standard error calculation excluding NAs
   val <- sd(vals_err_calc, na.rm=TRUE)/sqrt(sum(!is.na(vals_err_calc)))
 }
 
-# @@@ FUNCTION: group standards------------------------------------
-group_std <- function(std_raw){
-  
-}
-
-
-interpolate_std <- function(std_vec){
-  
-}
-
-# @ FUNCTION: check midnight------------------------------------------
 check_midnight <- function(test_date){
   new_dates <- if_else(hour(test_date) < 6, test_date + days(1), test_date)
 }
 
+# future function for swapping tube names
+# this is easier after everything is in one table
+switch_tubes <- function(all_tubes, switch_phase, switch_list){
+  for (i in 1:length(switch_list)){
+    tube1 <- as.character(switch_list[i, 1])
+    tube2 <- as.character(switch_list[i, 2])
+    
+    all_tubes[which(all_tubes$sampleID==tube1 & all_tubes$phase==switch_phase),]$sampleID <- 'dummy1'
+    all_tubes[which(all_tubes$sampleID==tube2 & all_tubes$phase==switch_phase),]$sampleID <- 'dummy2'
+    
+    all_tubes[which(all_tubes$sampleID=='dummy1'),]$sampleID <- tube2
+    all_tubes[which(all_tubes$sampleID=='dummy2'),]$sampleID <- tube1
+  }
+}
 
 get_info <- function(fileloc){
   
@@ -144,18 +146,7 @@ get_info <- function(fileloc){
   # select(-tube_num, -position, -rack)
 }
 
-# future function for swapping tube names
-# this is easier after everything is in one table
-
-switch_tubes <- function(all_tubes, switch_phase, switch_list){
-  for (i in 1:length(switch_list)){
-    tube1 <- as.character(switch_list[i, 1])
-    tube2 <- as.character(switch_list[i, 2])
-    
-    all_tubes[which(all_tubes$sampleID==tube1 & all_tubes$phase==switch_phase),]$sampleID <- 'dummy1'
-    all_tubes[which(all_tubes$sampleID==tube2 & all_tubes$phase==switch_phase),]$sampleID <- 'dummy2'
-    
-    all_tubes[which(all_tubes$sampleID=='dummy1'),]$sampleID <- tube2
-    all_tubes[which(all_tubes$sampleID=='dummy2'),]$sampleID <- tube1
-  }
+get_phase1_max <- function(phases_data) {
+  phase1 <- filter(phases_data, phase == 1)
+  max_p1 <- max(phase1$incub_count)
 }
