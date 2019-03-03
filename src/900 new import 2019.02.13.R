@@ -1,6 +1,6 @@
 # ======= header ============------------------------
 
-# Clean + analyze IRGA data from datasheets
+# Imports and cleans data for one single sampling
 # Feb 2019
 
 library(dplyr)

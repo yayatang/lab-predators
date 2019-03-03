@@ -1,6 +1,6 @@
 # ======= header ============------------------------
 
-# For importing and cleaning IRGA data from datasheets
+# For importing and cleaning all IRGA data from datasheets
 # Feb 2019
 
 library(dplyr)
@@ -22,7 +22,7 @@ all_samp2 <- bind_rows(all_samp) %>%
   arrange(phase, incub_count) %>%
   select(-rep)
 
-switch_list <- read_csv(here::here('data/tubes_switch.csv'))
+switch_list <- read_csv(here::here('data/1_tubes_switch.csv'))
 switch_phase <- 1
 all_samp3 <- all_samp2
 

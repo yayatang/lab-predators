@@ -175,9 +175,9 @@ daily_plot(1, data8_to_graph, max_p1)
 all_plots <- function(graph_data, max_p1) {
   
   graph_data <- data8_to_graph %>% 
-    filter(trt!='R',
-           trt!='WS',
-           trt!='MR')
+    filter(trt!='R')
+    #        trt!='WS',
+    #        trt!='MR')
   
   var_to_graph <- c('infer_tube_total_daily',
                     'by_tube_total_cumul',
@@ -223,7 +223,7 @@ all_plots <- function(graph_data, max_p1) {
   # all_plots <- htmltools::tagList()
   
   # for (i in seq_along(length(dynamic_data))){
-    i <- 6
+    i <- 5
     selected_data <- graph_data %>% 
       select(sampleID, exp_count, trt, rep, !!dynamic_data$var_to_graph[[i]], 
              !!dynamic_data$se_to_graph[[i]], !!dynamic_data$graph_group[[i]])
@@ -255,7 +255,7 @@ all_plots <- function(graph_data, max_p1) {
       labs(x="Experimental days lapsed", y=dynamic_data$y_titles[[i]]) +
       ggtitle(paste(dynamic_data$plot_titles[[i]]))
   
-    ggsave(paste0(i,'by_', dynamic_data$graph_group[i], 'with_amends_NO.WS.ME_.pdf'), width=10, height=7.5, dpi=400)
+    ggsave(paste0('results/NEW',i,'_by_', dynamic_data$graph_group[i], 'with_amends_.pdf'), width=10, height=7.5, dpi=400)
     
     ggplotly(any_plot)
     # all_plots[[i]] <- as_widget(ggplotly(any_plot))
