@@ -6,11 +6,13 @@ library(plotly)
 
 source(here::here('src/yaya_fxns.r'))
 
+# import treatment data and convert it to factors with levels
 trt_key <- read_csv(here::here('data/0_trt-key.csv')) %>%
   arrange(trt_order)
 trt_key$trt <- factor(trt_key$trt, levels=trt_key$trt[order(trt_key$trt_order)])
 all_trt <- trt_key$trt
 
+# import sampling data and merge with treatment
 data0_raw <- read_csv(here::here('data/IRGA/clean/clean_all_samp.csv'))
 data0_raw$trt <- factor(data0_raw$trt, levels=trt_key$trt[order(trt_key$trt_order)])
 data0_raw$sampleID <- as.factor(data0_raw$sampleID)
@@ -44,7 +46,7 @@ co2c_const <- 0.05 * 12.0011 / 22.4
 data1_orig$samp_by_std <- (std_ppm * (data1_orig$integral/data1_orig$std_vector))*(inj_constant^data1_orig$inject_num)
 
 # calculate _final_ CO2 ppm rate per day, in units CO2-C (microg C/g/h)
-# dsoil is in g, merge from table later
+# dsoil is in g, merge from table of actual values later
 data1_orig$actual_dsoil <- 5
 data1_orig$samp_co2_total <- data1_orig$samp_by_std * co2c_const / data1_orig$actual_dsoil
 data1_orig$samp_co2_rate <- data1_orig$samp_co2_total / data1_orig$incub_hours
