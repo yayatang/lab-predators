@@ -48,7 +48,7 @@ get_info <- function(fileloc){
   meta$std_ppm <- as.numeric(meta$std_ppm)
   meta$phase <- as.numeric(phase)
   
-  cat("meta imported")
+  # cat("meta imported")
   # ======================================================================================
   # === imports samples and standard data ===
   # reads file, removes empty and NA cols
@@ -110,7 +110,7 @@ get_info <- function(fileloc){
   std_full <- std_full %>%
     # rename(std_time=mean_time) %>%
     select(-mean_integral)
-  cat("standards imported")
+  # cat("standards imported")
   
   #=======================================================================
   # === makes clean imported sample data ===
@@ -138,7 +138,8 @@ get_info <- function(fileloc){
   arr_samp$date_for_std <- round_date(arr_samp$date_msre, unit='minute')
   
   # ==============================\==============================================
-  cat(fileloc, "OK!")
+  # cat(fileloc, "OK!")
+  
   # merge samples with standards + soil data (get later)
   master_sampling <- left_join(arr_samp, std_full, by = c('date_for_std'='mean_time'))
   # master_sampling <- master_sampling %>%

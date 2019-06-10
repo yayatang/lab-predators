@@ -128,7 +128,7 @@ summ_by_trt_daily <- data7_filled %>%
 
 summ_by_trt_cumul <- data7_filled %>% 
   group_by(trt, exp_count) %>% 
-  summarize_at(vars(by_tube_diff_cumul),funs(mean(., na.rm = TRUE), se)) %>% 
+  summarize_at(vars(by_tube_diff_cumul), list(~mean(., na.rm = TRUE), ~se(.))) %>% 
   rename(by_trt_cumul_mean = mean,
          by_trt_cumul_se = se) %>% 
   ungroup()
