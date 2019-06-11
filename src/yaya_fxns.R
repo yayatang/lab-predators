@@ -23,6 +23,8 @@ switch_tubes <- function(all_tubes, switch_phase, switch_list){
     all_tubes[which(all_tubes$sampleID=='dummy1'),]$sampleID <- tube2
     all_tubes[which(all_tubes$sampleID=='dummy2'),]$sampleID <- tube1
   }
+  
+  all_tubes
 }
 
 get_info <- function(fileloc){
