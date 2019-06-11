@@ -44,9 +44,7 @@ loess_whc <- loess_moisture$whc100.fresh
 
 # convert "fresh" soil values into actual dry soil
 data1_orig <- data1_orig %>% 
-  mutate(dsoil = round(data1_orig$actual.soil - (data1_orig$actual.soil*(loess_gmc/100)), digits=4))
-
-
+  mutate(soil_dry = round(data1_orig$soil_actual - (data1_orig$soil_actual*(loess_gmc/100)), digits=4))
 
 # known standard gas CO2 ppm value
 std_ppm <- 1997
@@ -59,20 +57,18 @@ co2c_const <- 0.05 * 12.0011 / 22.4
 data1_orig$samp_by_std <- (std_ppm * (data1_orig$integral/data1_orig$std_vector))*(inj_constant^data1_orig$inject_num)
 
 # calculate _final_ CO2 ppm rate per day, in units CO2-C (microg C/g/h)
-# dsoil is in g, merge from table of actual values later
-data1_orig$actual_dsoil <- 5
-data1_orig$samp_co2_total <- data1_orig$samp_by_std * co2c_const / data1_orig$actual_dsoil
+data1_orig$samp_co2_total <- data1_orig$samp_by_std * co2c_const / data1_orig$soil_dry
 data1_orig$samp_co2_rate <- data1_orig$samp_co2_total / data1_orig$incub_hours
 data1_orig <- mutate(data1_orig, tube_perday = samp_co2_rate*24)
 
 # adjust by biomass, un/comment for adjusted values
-amendments_raw <- read_csv('data/IRGA prep/00_trt_mass.csv')
+amendments_raw <- read_csv(here::here('data/IRGA prep/1_trt_mass.csv'))
 colnames(amendments_raw) <- c('trt', 'rep', 'before', 'after')
-amendments_raw$trt <- as.factor(amendments_raw$trt)
-amendments_raw$rep <- as.numeric(amendments_raw$rep)
+amendments_raw$trt <- factor(amendments_raw$trt, levels=trt_key$trt[order(trt_key$trt_order)])
+amendments_raw$rep <- as.integer(amendments_raw$rep)
 amendments_orig <- amendments_raw %>%
   left_join(tube_trt_info, all.x=TRUE, by=c('trt', 'rep')) %>%
-  mutate(amend_mass = after - before)
+  mutate(amend_mass = if_else(trt != 'C' & trt != 'R', after - before, NA_real_))
 
 amendments_orig$amend_mass[is.na(amendments_orig$amend_mass)] <- 1
 amendments_clean <- amendments_orig %>%
