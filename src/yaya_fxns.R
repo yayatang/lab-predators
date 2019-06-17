@@ -12,16 +12,26 @@ check_midnight <- function(test_date){
 
 # future function for swapping tube names
 # this is easier after everything is in one table
-switch_tubes <- function(all_tubes, switch_phase, switch_list){
-  for (i in 1:length(switch_list)){
+switch_tubes <- function(all_tubes, switch_list){
+  
+  for (i in 1:nrow(switch_list)){
     tube1 <- as.character(switch_list[i, 1])
     tube2 <- as.character(switch_list[i, 2])
     
-    all_tubes[which(all_tubes$sampleID==tube1 & all_tubes$phase==switch_phase),]$sampleID <- 'dummy1'
-    all_tubes[which(all_tubes$sampleID==tube2 & all_tubes$phase==switch_phase),]$sampleID <- 'dummy2'
+    tube1_meta <- tibble(sampleID = tube1, trt = substr(tube1, 1, 1), rep = as.numeric(substr(tube1, 3, 4)))
+    tube2_meta <- tibble(sampleID = tube2, trt = substr(tube2, 1, 1), rep = as.numeric(substr(tube2, 3, 4)))
     
-    all_tubes[which(all_tubes$sampleID=='dummy1'),]$sampleID <- tube2
-    all_tubes[which(all_tubes$sampleID=='dummy2'),]$sampleID <- tube1
+    # find corresponding tube num
+    tube1_meta$tube_num <- all_tubes[which(all_tubes$sampleID==tube1 & all_tubes$phase==1),]$tube_num[1]
+    tube2_meta$tube_num <- all_tubes[which(all_tubes$sampleID==tube2 & all_tubes$phase==1),]$tube_num[1]
+    
+    # phase 1, switch ALL tube info, phase 2 switch all BUT sampleID info
+    all_tubes[which(all_tubes$tube_num==tube1_meta$tube_num & all_tubes$phase == 1),]$sampleID <- tube2_meta$sampleID
+    all_tubes[which(all_tubes$tube_num==tube2_meta$tube_num & all_tubes$phase == 1),]$sampleID <- tube1_meta$sampleID
+    all_tubes[which(all_tubes$tube_num==tube1_meta$tube_num),]$trt <- tube2_meta$trt
+    all_tubes[which(all_tubes$tube_num==tube2_meta$tube_num),]$trt <- tube1_meta$trt
+    all_tubes[which(all_tubes$tube_num==tube1_meta$tube_num),]$rep <- tube2_meta$rep
+    all_tubes[which(all_tubes$tube_num==tube2_meta$tube_num),]$rep <- tube1_meta$rep
   }
   
   all_tubes
