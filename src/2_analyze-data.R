@@ -1,27 +1,29 @@
 library(tidyverse)
-
 library(lubridate)
 library(zoo)
 library(plotly)
 source(here::here('src/yaya_fxns.r'))
 
+#====
 # import treatment data and convert it to factors with levels
 trt_key <- read_csv(here::here('data/0_trt-key.csv')) %>%
   arrange(trt_order)
 trt_key$trt <- factor(trt_key$trt, levels=trt_key$trt[order(trt_key$trt_order)])
-# all_trt <- trt_key$trt
 
 # read imported and clean data
 data0_raw <- read_csv(here::here('results/all_samp_clean.csv')) %>% 
-  arrange(sampleID)
+  arrange(sampleID) %>% 
+  rename(phase_count = incub_count)
 data0_raw$trt <- factor(data0_raw$trt, levels=trt_key$trt[order(trt_key$trt_order)])
 data0_raw$sampleID <- as.factor(data0_raw$sampleID)
 
 max_p1 <- get_phase1_max(data0_raw)
+
 data1_orig <-  data0_raw %>% 
-  mutate(add_days = if_else(phase==2, max_p1, 0),
-         exp_count = incub_count + add_days) %>%
-  select(-add_days, -rack, -position, -date_flush, -date_msre)
+  mutate(exp_count = if_else(phase==2, phase_count + max_p1, phase_count)) %>% 
+  # mutate(add_days = if_else(phase==2, max_p1, 0),
+  #        exp_count = incub_count + add_days) %>%
+  select(-rack, -position, -date_flush, -date_msre)
 
 # info to be used later
 irga_days <- unique(data1_orig$exp_count)
@@ -35,17 +37,17 @@ exp_counting <- tibble(exp_count = as.numeric(seq(max_exp))) %>%
   mutate(phase = if_else(exp_count <= max_p1, 1, 2),
          phase_count = if_else(phase==2, exp_count-max_p1, exp_count))
 
-# calculate the DRY soil added from WHC values
+#==== 
+#calculate the DRY soil added from WHC values
 loess_moisture <- read_csv(here::here('data/IRGA prep/00_moisture_soil.csv')) %>% 
   select(gmc.fresh, whc100.fresh)
-
 loess_gmc <- loess_moisture$gmc.fresh
 loess_whc <- loess_moisture$whc100.fresh
-
 # convert "fresh" soil values into actual dry soil
 data1_orig <- data1_orig %>% 
   mutate(soil_dry = round(data1_orig$soil_actual - (data1_orig$soil_actual*(loess_gmc/100)), digits=4))
 
+#====
 # known standard gas CO2 ppm value
 std_ppm <- 1997
 # amount the ppm adjusts with each 5ml co2-free air injection
@@ -78,8 +80,6 @@ data1_amends <- inner_join(data1_orig, amendments_clean, by=c('sampleID'))
 data1_amends$tube_perday <- data1_amends$tube_perday/data1_amends$amend_mass
 
 data2_clean <- data1_amends %>%
-# data2_clean <- data1_orig %>%
-  rename(phase_count = incub_count) %>% 
   select('sampleID', 'exp_count', 'phase', 'phase_count', 'trt', 'rep', 'tube_perday')
 
 control_lookup <- data2_clean %>%
@@ -97,24 +97,31 @@ ctrl_infer <- as_tibble(expand.grid(exp_count = all_days)) %>%
   mutate(infer_ctrl = na.approx(ctrl_mean),
          ctrl_cumul = cumsum(infer_ctrl))
 
-# find diff for tubes
+# merge tube data with control values and calc tube diff
 data3_individual <- data2_clean %>%
   left_join(control_lookup, by = c("exp_count")) %>% 
-  # mutate(tube_diff = tube_perday - ctrl_mean)
-  mutate(tube_diff = tube_perday) # this is to plot without subtracting controls
+  mutate(tube_diff = tube_perday - ctrl_mean,
+         real_data = TRUE)
+  # mutate(tube_diff = tube_perday) # this is to plot without subtracting controls
 
+# create an empty tibble for all tubes across all days (to infer/calc)
 grid_vals <- as_tibble(expand.grid(all_tubes, all_days))
 colnames(grid_vals) <- c("sampleID", "exp_count")
 
-data4_gapped <- left_join(grid_vals, data3_individual, by=c('sampleID','exp_count'))
-data4_gapped <- mutate(data4_gapped, phase = if_else(data4_gapped$exp_count <= max_p1, 1, 2))
+# merge data with empty tibble, and add phase variable
+data4_gapped <- left_join(grid_vals, data3_individual,by=c('sampleID','exp_count'))
+data4_gapped <- data4_gapped %>% 
+  mutate(phase = if_else(data4_gapped$exp_count <= max_p1, 1, 2),
+         real_data =  if_else(is.na(data4_gapped$real_data), FALSE, TRUE))
 
+# fill out tibble with inferred data for each tube
 data5_inferred <- data4_gapped %>%
   group_by(sampleID) %>%
   arrange(exp_count) %>%
   mutate(infer_tube_total_daily = na.approx(tube_perday),
          infer_tube_diff_daily = na.approx(tube_diff)) %>% 
   select(-phase_count, -trt, -rep)
+
 
 data6_cumul <- data5_inferred %>% 
   group_by(sampleID) %>% 
@@ -145,4 +152,8 @@ summ_by_trt_cumul <- data7_filled %>%
 all_summarized_by_trt <- full_join(summ_by_trt_daily, summ_by_trt_cumul, by=c('trt','exp_count'))
 
 data8_to_graph <- left_join(data7_filled, all_summarized_by_trt, by=c('trt', 'exp_count'))
+data8_to_graph[which(is.na(data8_to_graph$se)),]$by_trt_cumul_se <- NA
+data8_to_graph[which(is.na(data8_to_graph$se)),]$by_trt_daily_se <- NA
 
+write_csv(data8_to_graph, "results/data_to_graph.csv")
+saveRDS(data8_to_graph, "results/data_to_graph.rds") # for saving factor levels

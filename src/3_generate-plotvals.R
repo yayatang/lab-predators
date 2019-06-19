@@ -1,5 +1,9 @@
 library(tidyverse)
 library(plotly)
+source(here::here('src/yaya_fxns.R'))
+
+imported_data <- readRDS("results/data_to_graph.rds")
+max_p1 <- get_phase1_max(imported_data)
 
 #un comment to make daily plots by tube
 # for one plot with conditional to make it tube vs trt
@@ -7,10 +11,8 @@ daily_plot <- function(graph_unit, graph_data, max_p1) {
   # unit 1 = tube
   # unit 2 = treatment
 
-  graph_unit <- 1
-  graph_data <- data8_to_graph
-
   if(graph_unit==1){
+    #should be replaced with "map" function to plotly all treatments
     user_input <- readline("Which treatment?")
     trt_to_plot <- as.character(user_input)
 
@@ -24,28 +26,30 @@ daily_plot <- function(graph_unit, graph_data, max_p1) {
       geom_point(size=0.7) +
       geom_errorbar(aes(ymin=infer_tube_diff_daily-ctrl_se, ymax=infer_tube_diff_daily+ctrl_se), width=0.3) +
       labs(x="Experimental days lapsed", y="Daily CO2-C") +
-      ggtitle(paste('Daily relative CO2-C values by tube'))
+      ggtitle(paste('Daily diff CO2-C values by tube'))
     ggplotly(plot_by_tube)
   } else {
-    plot_by_treatment <- ggplot(graph_data, aes(exp_count, by_trt_daily_mean, color=trt)) +
+    plot_by_treatment <- ggplot(graph_data, aes(exp_count, by_trt_cumul_mean, color=trt)) +
       # facet_grid(~phase, scales="free") +
       geom_vline(xintercept=max_p1) +
       geom_hline(yintercept=0) +
       geom_line(aes(group=trt), size=0.5) +
       geom_point(size=0.7) +
-      geom_errorbar(aes(ymin=by_trt_daily_mean-se_reps, ymax=by_trt_daily_mean+se_reps), width=0.3) +
-      labs(x="Experimental days lapsed", y="Daily CO2-C") +
-      ggtitle(paste('Daily relativeCO2-C values by treatment'))
+      geom_errorbar(
+        aes(ymin = by_trt_cumul_mean - by_trt_cumul_se, 
+            ymax = by_trt_cumul_mean + by_trt_cumul_se), width=0.3) +
+      labs(x="Experimental days lapsed", y="cumul CO2-C") +
+      ggtitle(paste('Daily diff CO2-C values by treatment'))
     ggplotly(plot_by_treatment)
   }
 }
 
-daily_plot(1, data8_to_graph, max_p1)
+daily_plot(2, imported_data, max_p1)
 
 # uncomment to re-functionalize
 # all_plots <- function(graph_data, max_p1) {
 
-graph_data <- data8_to_graph %>% 
+graph_data <- imported_data %>% 
   filter(trt!='R',
          trt!='WN',
          trt!='WS',
@@ -98,7 +102,7 @@ dynamic_data <- tibble(var_to_graph, se_to_graph, graph_group, y_titles, plot_ti
 
 
 # i is the type of graph, according to the titles above
-i <- 4
+i <- 1
 selected_data <- graph_data %>% 
   select(sampleID, exp_count, trt, rep, !!dynamic_data$var_to_graph[[i]], 
          !!dynamic_data$se_to_graph[[i]], !!dynamic_data$graph_group[[i]], animal_group)
@@ -121,7 +125,7 @@ if (i >= 5) {
 cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#0072B2", "#D55E00", "#CC79A7", "#F0E442")
 cbbPalette <- c("#000000", "#E69F00", "#56B4E9", "#009E73", "#0072B2", "#D55E00", "#CC79A7", "#F0E442")
 
-any_plot <- ggplot(plot_data, aes(exp_count, graph_yvar, color=Treatment)) +
+any_plot <- ggplot(plot_data, aes(exp_count, graph_yvar, color=trt)) +
   # facet_grid(~phase, scales="free") +
   geom_vline(xintercept=max_p1, color="grey", size = 0.3) +
   geom_hline(yintercept=0) +

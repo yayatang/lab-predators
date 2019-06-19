@@ -161,5 +161,5 @@ get_info <- function(fileloc){
 
 get_phase1_max <- function(phases_data) {
   phase1 <- filter(phases_data, phase == 1)
-  max_p1 <- max(phase1$incub_count)
+  max_p1 <- max(phase1$phase_count)
 }
