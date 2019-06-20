@@ -163,3 +163,22 @@ get_phase1_max <- function(phases_data) {
   phase1 <- filter(phases_data, phase == 1)
   max_p1 <- max(phase1$phase_count)
 }
+
+# check cleanness
+cc <- function(df) {
+  print(df %>% is.na() %>% colSums())
+}
+
+# cleanness density
+cd <- function(df) {
+  print(df %>% is.na() %>% colMeans())
+}
+
+calc_dry <- function(mass_data) {
+  if_else (is.na(mass_data$mass_tube_wet)) {
+    if_else(is.na(mass_data$mass.g_))
+    # xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    
+  }
+  
+}

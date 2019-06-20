@@ -14,25 +14,35 @@ source(here::here('src/yaya_fxns.R'))
 # 1. PREY PROPERTIES
 #==========================================================
 
-prey_feed1 <- read_csv(here::here("data/feedings/1 feeding1-ghops.csv"))
-prey_feed1 <- prey_feed1[which(!(prey_feed1$feeding == 1 & prey_feed1$ghop_num == 25)),]
+prey_raw <- read_csv(here::here("data/1_prey_data.csv"))
 
-prey_feed2 <- read_csv(here::here("data/feedings/1 feeding2-ghops.csv")) %>% 
-  mutate(notes = NA)
-prey_feed3 <- read_csv(here::here("data/feedings/1 feeding3-ghops.csv")) %>% 
-  rename(notes = comments)
-
-prey_all <- rbind(prey_feed1, prey_feed2, prey_feed3) %>% 
-  rename(predatorID = predator_ID,
-         tube_ghop_wet = tube_ghop_mass) %>% 
-  mutate(preyID = paste0("G", ghop_num, "F", feeding))
-
-# still need dry data
+prey_g <- prey_raw %>% 
+  rename(preyID = ghopID,
+         ghop_num = ghop.num,
+         ghop_type = ghop.type,
+         mass_tube = mass.ghop.tube,
+         mass_tube_wet = mass.ghop.wet,
+         ghop_instar = ghop.instar,
+         mass_tube_dry.G = mass.ghop.dry.G,
+         analytical_fate = analytical.fate)
+# removed the one fed but abandoned ghop
+prey_g <- prey_g[which(!(prey_g$feeding == 1 & prey_g$ghop_num == 25)),]
 
 #==========================================================
 # 2. PREDATOR PROPERTIES
 #==========================================================
 
+pred_m <- read_csv(here::here("data/1_predator_mantid.csv")) %>% 
+  rename(pred_product = sample.type,
+         mass_tube = mass.tube,
+         mass_tube_wet = mass.tube.wet,
+         mass_tube_dry = mass.tube.dry,
+         mass_tube.g = mass.g.tube,
+         mass_tube.g_wet = mass.g.tube.wet, #only a few 
+         mass_tube.g_dry = mass.g.tube.dry.after)
+pred_s <- read_csv(here::here("data/1_predator_spider.csv"))
+
+# fxn to fix missing values for mg masses
 
 
 #==========================================================
