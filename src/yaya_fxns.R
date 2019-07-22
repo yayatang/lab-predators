@@ -174,11 +174,18 @@ cd <- function(df) {
   print(df %>% is.na() %>% colMeans())
 }
 
-calc_dry <- function(mass_data) {
-  if_else (is.na(mass_data$mass_tube_wet)) {
-    if_else(is.na(mass_data$mass.g_))
-    # xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-    
-  }
+# calculates average ghop water content
+# NOT divided by feeding
+calc_dry <- function(ghop_mass) {
+  ghop_mass$water_mass <- ghop_mass$mass_tube_wet - ghop_mass$mass_tube_dry
+  ghop_mass$percent_water <- ghop_mass$water_mass/ghop_mass$mass_wet
+  water <- na.omit(ghop_mass$percent_water)
+  water_avg <- mean(water)
+  water_se <- se(water)
+  cat("average ghop water content:", water_avg, "+-", water_se)
+  # this is a dry mass
+  ghop_mass$ghop_infer_origin <- ghop_mass$mass_wet - water_avg*ghop_mass$mass_wet
   
+  # returns entire tibble with new inferred ghop dry mass
+  ghop_mass
 }
