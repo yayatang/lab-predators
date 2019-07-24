@@ -13,11 +13,12 @@ check_midnight <- function(test_date){
 # future function for swapping tube names
 # this is easier after everything is in one table
 switch_tubes <- function(all_tubes, switch_list){
-  
   for (i in 1:nrow(switch_list)){
+    # get the name of the tube aka tubeID
     tube1 <- as.character(switch_list[i, 1])
     tube2 <- as.character(switch_list[i, 2])
     
+    # get the necessary data for the tube, i.e. tubeID, trt, rep from tubeID
     tube1_meta <- tibble(sampleID = tube1, trt = substr(tube1, 1, 1), rep = as.numeric(substr(tube1, 3, 4)))
     tube2_meta <- tibble(sampleID = tube2, trt = substr(tube2, 1, 1), rep = as.numeric(substr(tube2, 3, 4)))
     
@@ -134,7 +135,7 @@ get_info <- function(fileloc){
     na.omit() 
   arr_samp$date_flush <- check_midnight(arr_samp$date_flush)
   arr_samp$date_msre <- check_midnight(arr_samp$date_msre)
-  arr_samp$sampleID <- as.factor(as.character(arr_samp$sampleID))
+  arr_samp$sampleID <- as.character(as.character(arr_samp$sampleID))
   arr_samp$integral <- as.numeric(arr_samp$integral)
   arr_samp$inject_num <- as.numeric(arr_samp$inject_num)
   
