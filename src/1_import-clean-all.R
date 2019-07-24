@@ -86,21 +86,25 @@ pred_prod$mass_tube_dry <- pred_prod$mass_tube_dry/1000
 #=== 
 # read tube treatment allocations
 tube_trts <- read_csv(here::here("data/IRGA prep/0_irga_treatments_by.tube.csv"))
+# format tubes receiving multiple products into list
 tube_trts2 <- tube_trts %>% 
+  rename(productID = animal_feeding,
+         tube_num = tubeID) %>% 
   mutate(product_type = str_split(product_type, ";"))
 tube_trts2$rep <- as.numeric(tube_trts2$rep)
 
 #====
 # import dry soil data, rename col
 soil_raw <- read_csv(here::here('data/IRGA prep/00_setup_2-tubes-soil.csv'))
-colnames(soil_raw) <- c('sampleID', 'trt', 'rep', 'mass_tube', 'target_soil', 'target_tube_soil', 'actual_tube_soil')
+colnames(soil_raw) <- c('tubeID', 'mass_tube', 'target_soil', 'target_tube_soil', 'actual_tube_soil')
 
 # remove tube values 
 soil_added <- soil_raw %>% 
   mutate(soil_actual = actual_tube_soil - mass_tube) %>% 
-  select(sampleID, trt, rep, soil_actual)
+  select(tubeID, soil_actual) %>% 
+  rename(tube_num = tubeID)
 
-lookup1 <- left_join(tube_trts2, soil_added, by=c('sampleID', 'trt', 'rep'))
+lookup1 <- left_join(tube_trts2, soil_added, by=c('tube_num'))
 
 #===
 #import amendment data
@@ -111,8 +115,7 @@ sample_added <- prey_raw %>%
   mutate(trt_added_mass = tube_soil_trt - tube_soil) %>% 
   select(trt, rep, trt_added_mass)
 
-lookup2 <- left_join(lookup1, sample_added) %>% 
-  rename(productID = animal_feeding)
+lookup2 <- left_join(lookup1, sample_added)
 
 #==========================================================
 # 5. IRGA DAILY DATA, merged with lookup
@@ -122,11 +125,17 @@ lookup2 <- left_join(lookup1, sample_added) %>%
 file_list <- list.files(path=here::here("data/IRGA/"), pattern="*.csv", full.names = TRUE)
 all_samp <- lapply(file_list, get_info)
 
+# # TROUBLESHOOTING
+# file_path <- here::here('data/IRGA/PP-IRGA 1-08.csv')
+# all_samp <- get_info(file_path)
+
 all_samp2 <- bind_rows(all_samp) %>%
-  arrange(phase, incub_count)
+  arrange(phase, incub_count) %>% 
+  select(-sampleID, -rep)
 
-
-all_samp3 <- left_join(all_samp2, lookup2)
+# merge with lookup table, which includes all the prep data per tube
+all_samp3 <- left_join(all_samp2, lookup2, by="tube_num") %>% 
+  select(sampleID, trt, rep, tube_num, rack, position, everything())
 
 # fix reference + control tubes label switches
 # requires vars on phase, 
@@ -139,7 +148,7 @@ tube_lookup <- unique(irga_daily[lookup_names])
 #==========================================================
 # 6. WRITE COMBINED FILE
 #==========================================================
-#=== write to file, 
+# #=== write to file, 
 write_csv(prey_g, here::here('results/1_prey.csv'))
 write_csv(pred_prod, here::here('results/1_products.csv'))
 write_csv(properties_m, here::here('results/1_properties.csv'))

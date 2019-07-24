@@ -10,32 +10,83 @@ check_midnight <- function(test_date){
   new_dates <- if_else(hour(test_date) < 6, test_date + days(1), test_date)
 }
 
-# future function for swapping tube names
+# function for swapping tube names
 # this is easier after everything is in one table
-switch_tubes <- function(all_tubes, switch_list){
+
+switch_tubes <- function(wrong_tubes, switch_list){
+  # # original function
+  # 
+  # for (i in 1:nrow(switch_list)){
+  #   # get the name of the tube aka tubeID
+  #   tube1 <- as.character(switch_list[i, 1])
+  #   tube2 <- as.character(switch_list[i, 2])
+  # 
+  #   # get the necessary data for the tube, i.e. tubeID, trt, rep from tubeID
+  #   tube1_meta <- tibble(sampleID = tube1, trt = substr(tube1, 1, 1), rep = as.numeric(substr(tube1, 3, 4)))
+  #   tube2_meta <- tibble(sampleID = tube2, trt = substr(tube2, 1, 1), rep = as.numeric(substr(tube2, 3, 4)))
+  # 
+  #   # find corresponding tube num
+  #   tube1_meta$tube_num <- all_tubes[which(all_tubes$sampleID==tube1 & all_tubes$phase==1),]$tube_num[1]
+  #   tube2_meta$tube_num <- all_tubes[which(all_tubes$sampleID==tube2 & all_tubes$phase==1),]$tube_num[1]
+  # 
+  #   # phase 1, switch ALL tube info, phase 2 switch all BUT sampleID info
+  #   all_tubes[which(all_tubes$tube_num==tube1_meta$tube_num & all_tubes$phase == 1),]$sampleID <- tube2_meta$sampleID
+  #   all_tubes[which(all_tubes$tube_num==tube2_meta$tube_num & all_tubes$phase == 1),]$sampleID <- tube1_meta$sampleID
+  #   all_tubes[which(all_tubes$tube_num==tube1_meta$tube_num),]$trt <- tube2_meta$trt
+  #   all_tubes[which(all_tubes$tube_num==tube2_meta$tube_num),]$trt <- tube1_meta$trt
+  #   all_tubes[which(all_tubes$tube_num==tube1_meta$tube_num),]$rep <- tube2_meta$rep
+  #   all_tubes[which(all_tubes$tube_num==tube2_meta$tube_num),]$rep <- tube1_meta$rep
+  # }
+  
+  # #TROUBLE SHOOTING
+  # wrong_tubes <- all_samp3
+  # i <- 2
+  # 
+  # new function
   for (i in 1:nrow(switch_list)){
     # get the name of the tube aka tubeID
     tube1 <- as.character(switch_list[i, 1])
     tube2 <- as.character(switch_list[i, 2])
     
-    # get the necessary data for the tube, i.e. tubeID, trt, rep from tubeID
-    tube1_meta <- tibble(sampleID = tube1, trt = substr(tube1, 1, 1), rep = as.numeric(substr(tube1, 3, 4)))
-    tube2_meta <- tibble(sampleID = tube2, trt = substr(tube2, 1, 1), rep = as.numeric(substr(tube2, 3, 4)))
+    # tube_num_old1 <- wrong_tubes[wrong_tubes$sampleID==tube1 & wrong_tubes$phase==1,]$tube_num[1]
+    # tube_num_old2 <- wrong_tubes[wrong_tubes$sampleID==tube2 & wrong_tubes$phase==1,]$tube_num[1]
+    # 
+    # tube1_new_meta <- wrong_tubes[which(wrong_tubes$tube_num == tube_num_old1), c('sampleID', 'trt','rep')]
+    
+    tube1_trt = substr(tube1, 1, 1)
+    tube1_rep = as.numeric(substr(tube1, 3, 4))
+    
+    tube2_trt = substr(tube2, 1, 1)
+    tube2_rep = as.numeric(substr(tube2, 3, 4))
     
     # find corresponding tube num
-    tube1_meta$tube_num <- all_tubes[which(all_tubes$sampleID==tube1 & all_tubes$phase==1),]$tube_num[1]
-    tube2_meta$tube_num <- all_tubes[which(all_tubes$sampleID==tube2 & all_tubes$phase==1),]$tube_num[1]
+    tube1_num <- wrong_tubes[which(wrong_tubes$sampleID==tube1 & wrong_tubes$phase==1),]$tube_num[1]
+    tube2_num <- wrong_tubes[which(wrong_tubes$sampleID==tube2 & wrong_tubes$phase==1),]$tube_num[1]
     
-    # phase 1, switch ALL tube info, phase 2 switch all BUT sampleID info
-    all_tubes[which(all_tubes$tube_num==tube1_meta$tube_num & all_tubes$phase == 1),]$sampleID <- tube2_meta$sampleID
-    all_tubes[which(all_tubes$tube_num==tube2_meta$tube_num & all_tubes$phase == 1),]$sampleID <- tube1_meta$sampleID
-    all_tubes[which(all_tubes$tube_num==tube1_meta$tube_num),]$trt <- tube2_meta$trt
-    all_tubes[which(all_tubes$tube_num==tube2_meta$tube_num),]$trt <- tube1_meta$trt
-    all_tubes[which(all_tubes$tube_num==tube1_meta$tube_num),]$rep <- tube2_meta$rep
-    all_tubes[which(all_tubes$tube_num==tube2_meta$tube_num),]$rep <- tube1_meta$rep
+    # create new rows for DF
+    # phase 1 v 2 sampleIDs DO NOT differ--merged by tube_num during import
+    new_tube1 <- wrong_tubes[wrong_tubes$tube_num == tube1_num,]
+    new_tube2 <- wrong_tubes[wrong_tubes$tube_num == tube2_num,]
+    
+    # remove old rows in DF
+    wrong_tubes <- wrong_tubes[!(wrong_tubes$tube_num==tube1_num | wrong_tubes$tube_num==tube2_num),]
+    # cat(nrow(wrong_tubes),"\n")
+    
+    # fix new rows
+    new_tube1$sampleID <- tube2
+    new_tube1$trt <- tube2_trt
+    new_tube1$rep <- tube2_rep
+    
+    new_tube2$sampleID <- tube1
+    new_tube2$trt <- tube1_trt
+    new_tube2$rep <- tube1_rep
+    
+    # print(new_tube1, "\n", new_tube2, "\n")
+    
+    all_new_tubes <- rbind(new_tube1, new_tube2)
+    wrong_tubes <- rbind(all_new_tubes, wrong_tubes)
   }
-  
-  all_tubes
+  new_df <- wrong_tubes
 }
 
 get_info <- function(fileloc){
