@@ -226,18 +226,21 @@ cd <- function(df) {
   print(df %>% is.na() %>% colMeans())
 }
 
-# calculates average ghop water content
+# calculates average product sample water content
 # NOT divided by feeding
-calc_dry <- function(ghop_mass) {
-  ghop_mass$water_mass <- ghop_mass$mass_tube_wet - ghop_mass$mass_tube_dry
-  ghop_mass$percent_water <- ghop_mass$water_mass/ghop_mass$mass_wet
-  water <- na.omit(ghop_mass$percent_water)
+calc_dry <- function(prod_mass) {
+  prod_mass$water_mass <- prod_mass$mass_wet - prod_mass$mass_dry
+  prod_mass$water_percent <- prod_mass$water_mass / prod_mass$mass_wet
+  
+  # calculate product_type by group type
+  water <- na.omit(prod_mass$water_percent)
   water_avg <- mean(water)
   water_se <- se(water)
-  cat("average ghop water content:", water_avg, "+-", water_se)
-  # this is a dry mass
-  ghop_mass$ghop_infer_origin <- ghop_mass$mass_wet - water_avg*ghop_mass$mass_wet
+  cat("average prod water content:", water_avg, "+-", water_se)
   
-  # returns entire tibble with new inferred ghop dry mass
-  ghop_mass
+  # this is a dry mass
+  prod_mass$infer_dry <- prod_mass$mass_wet - water_avg*prod_mass$mass_wet
+  
+  # returns entire tibble with new inferred prod dry mass
+  prod_mass
 }

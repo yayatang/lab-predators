@@ -31,10 +31,9 @@ prey_g <- prey_raw %>%
 # calculate wet and dry weights in grams
 prey_g$ghop_wet <- (prey_g$mass_tube_wet - prey_g$mass_tube)/1000
 prey_g$ghop_dry <- (prey_g$mass_tube_dry - prey_g$mass_tube)/1000
-prey_g <- select(prey_g, -mass_tube, -mass_tube_wet, -mass_tube_dry, -ghop_instar)
 
-# removed the mantid that was fed but abandoned ghop
-prey_g <- prey_g[which(!(prey_g$feeding == 1 & prey_g$ghop_num == 25)),]
+# considered removing mantid that was fed but abandoned ghop
+# prey_g <- prey_g[which(!(prey_g$feeding == 1 & prey_g$ghop_num == 25)),]
 
 
 #==========================================================
@@ -153,3 +152,4 @@ write_csv(prey_g, here::here('results/1_prey.csv'))
 write_csv(pred_prod, here::here('results/1_products.csv'))
 write_csv(properties_m, here::here('results/1_properties.csv'))
 saveRDS(irga_daily, here::here('results/1_irga.rds'))
+saveRDS(tube_lookup, here::here('results/1_tubes.rds'))
