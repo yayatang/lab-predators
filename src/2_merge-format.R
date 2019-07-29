@@ -124,6 +124,7 @@ prey4pred <- data_prey2 %>%
 # merge ghop inferred dry data with predator products
 data_products4 <- left_join(data_products3, prey4pred, by=c('predatorID','feeding')) %>% 
   select(-observations, everything(), observations)
+data_products4 <- data_products4[rowSums(is.na(data_products4)) != ncol(data_products4),]
 
 #==========================================================
 # 3. MAKING IRGA ONLY DATA
@@ -158,15 +159,24 @@ i_inputs <- rbind(i_products, i_ghops)
 
 # create variables for calculations
 i_inputs$effective_dry <- ifelse(is.na(i_inputs$mass_dry), i_inputs$origin_infer, i_inputs$mass_dry)
+i_inputs$origin_dry <- ifelse(is.na(i_inputs$origin_infer), i_inputs$mass_dry, i_inputs$origin_infer)
 
-
-i_product_types <- i_inputs %>%
+i_inputs_summed <- i_inputs %>%
   group_by(tube_num) %>% 
-  nest()
+  summarize(summed_inputs = sum(effective_dry))
+
+i_inputs_netto <- i_inputs %>% 
+  select(tube_num, tubeID, ghop_fate, originID, origin_dry) %>% 
+  unique() %>% 
+  left_join(i_inputs_summed)
 
 #===
 # merge ghop dry data with IRGA data
 data_irga <- irga %>% 
   rename(tubeID = sampleID)
 
-irga_input <- left_join(data_irga, i_inputs, by = 'tubeID')
+irga_input <- left_join(data_irga, i_inputs_netto)
+amend_diff <- irga_input$trt_added_mass - irga_input$summed_inputs
+
+#----
+saveRDS(irga_input, here::here('results/2_irga.rds'))
