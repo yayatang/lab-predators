@@ -61,7 +61,8 @@ pred_m <- read_csv(here::here("data/1_predator_mantid.csv")) %>%
          analytical_fate = analytical.fate,
          IRGA_trt = IRGA.trt,
          IRGA_trt_rep = IRGA.trt.rep,
-         IRGA_tube = IRGA.tube)
+         IRGA_tube = IRGA.tube) %>% 
+  mutate(ghop_fate = "mantid")
 pred_s <- read_csv(here::here("data/1_predator_spider.csv")) %>% 
   rename(product_type = sample.type,
          mass_tube = mass.tube,
@@ -71,6 +72,7 @@ pred_s <- read_csv(here::here("data/1_predator_spider.csv")) %>%
          IRGA_trt = IRGA.trt,
          IRGA_trt_rep = IRGA.trt.rep,
          IRGA_tube = IRGA.tube) %>% 
+  mutate(ghop_fate = "spider") %>% 
   arrange(feeding, product_type, predatorID)
 
 pred_prod <- full_join(pred_m, pred_s)
