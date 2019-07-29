@@ -7,6 +7,19 @@ imported_data <- readRDS("results/3_data_to_graph.rds")
 trts <- unique(imported_data$trt)
 max_p1 <- get_phase1_max(imported_data)
 
+
+#==============================================================
+# 1. comparing both predators products to each other
+
+
+
+
+
+
+
+
+
+
 # exploratory graph making function
 scatter_fun <- function(x, y) {
   cbbPalette <- c("#000000", "#E69F00", "#56B4E9", "#009E73", "#0072B2", "#D55E00", "#CC79A7", "#F0E442")
