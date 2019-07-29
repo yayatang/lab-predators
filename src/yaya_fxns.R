@@ -12,46 +12,11 @@ check_midnight <- function(test_date){
 
 # function for swapping tube names
 # this is easier after everything is in one table
-
 switch_tubes <- function(wrong_tubes, switch_list){
-  # # original function
-  # 
-  # for (i in 1:nrow(switch_list)){
-  #   # get the name of the tube aka tubeID
-  #   tube1 <- as.character(switch_list[i, 1])
-  #   tube2 <- as.character(switch_list[i, 2])
-  # 
-  #   # get the necessary data for the tube, i.e. tubeID, trt, rep from tubeID
-  #   tube1_meta <- tibble(sampleID = tube1, trt = substr(tube1, 1, 1), rep = as.numeric(substr(tube1, 3, 4)))
-  #   tube2_meta <- tibble(sampleID = tube2, trt = substr(tube2, 1, 1), rep = as.numeric(substr(tube2, 3, 4)))
-  # 
-  #   # find corresponding tube num
-  #   tube1_meta$tube_num <- all_tubes[which(all_tubes$sampleID==tube1 & all_tubes$phase==1),]$tube_num[1]
-  #   tube2_meta$tube_num <- all_tubes[which(all_tubes$sampleID==tube2 & all_tubes$phase==1),]$tube_num[1]
-  # 
-  #   # phase 1, switch ALL tube info, phase 2 switch all BUT sampleID info
-  #   all_tubes[which(all_tubes$tube_num==tube1_meta$tube_num & all_tubes$phase == 1),]$sampleID <- tube2_meta$sampleID
-  #   all_tubes[which(all_tubes$tube_num==tube2_meta$tube_num & all_tubes$phase == 1),]$sampleID <- tube1_meta$sampleID
-  #   all_tubes[which(all_tubes$tube_num==tube1_meta$tube_num),]$trt <- tube2_meta$trt
-  #   all_tubes[which(all_tubes$tube_num==tube2_meta$tube_num),]$trt <- tube1_meta$trt
-  #   all_tubes[which(all_tubes$tube_num==tube1_meta$tube_num),]$rep <- tube2_meta$rep
-  #   all_tubes[which(all_tubes$tube_num==tube2_meta$tube_num),]$rep <- tube1_meta$rep
-  # }
-  
-  # #TROUBLE SHOOTING
-  # wrong_tubes <- all_samp3
-  # i <- 2
-  # 
-  # new function
-  for (i in 1:nrow(switch_list)){
+    for (i in 1:nrow(switch_list)){
     # get the name of the tube aka tubeID
     tube1 <- as.character(switch_list[i, 1])
     tube2 <- as.character(switch_list[i, 2])
-    
-    # tube_num_old1 <- wrong_tubes[wrong_tubes$sampleID==tube1 & wrong_tubes$phase==1,]$tube_num[1]
-    # tube_num_old2 <- wrong_tubes[wrong_tubes$sampleID==tube2 & wrong_tubes$phase==1,]$tube_num[1]
-    # 
-    # tube1_new_meta <- wrong_tubes[which(wrong_tubes$tube_num == tube_num_old1), c('sampleID', 'trt','rep')]
     
     tube1_trt = substr(tube1, 1, 1)
     tube1_rep = as.numeric(substr(tube1, 3, 4))
@@ -80,9 +45,7 @@ switch_tubes <- function(wrong_tubes, switch_list){
     new_tube2$sampleID <- tube1
     new_tube2$trt <- tube1_trt
     new_tube2$rep <- tube1_rep
-    
-    # print(new_tube1, "\n", new_tube2, "\n")
-    
+
     all_new_tubes <- rbind(new_tube1, new_tube2)
     wrong_tubes <- rbind(all_new_tubes, wrong_tubes)
   }
@@ -229,18 +192,44 @@ cd <- function(df) {
 # calculates average product sample water content
 # NOT divided by feeding
 calc_dry <- function(prod_mass) {
+  # prod_mass <- data_products #troubleshooting
+  # prod_mass <- data_prey #troubleshooting
   prod_mass$water_mass <- prod_mass$mass_wet - prod_mass$mass_dry
-  prod_mass$water_percent <- prod_mass$water_mass / prod_mass$mass_wet
+  prod_mass$water_percent <- (prod_mass$water_mass / prod_mass$mass_wet)*100
   
   # calculate product_type by group type
-  water <- na.omit(prod_mass$water_percent)
-  water_avg <- mean(water)
-  water_se <- se(water)
-  cat("average prod water content:", water_avg, "+-", water_se)
+  water_stats <- prod_mass %>% 
+    group_by(ghop_fate, product_type) %>% 
+    summarize_at(vars(water_percent), list(~mean(., na.rm = TRUE), ~se(.))) %>% 
+    rename(percent_mean = mean,
+           percent_se = se) %>%
+    na.omit()
+  # from earlier script, for standard dev + coefficient of variation
+  # feces_avg <- mean(feces_water$water_percent)
+  # feces_sd <- sd(feces_water$water_percent)
+  # feces_cv <- feces_sd/feces_avg
+  # feces_se <- se(feces_water$water_percent)
   
-  # this is a dry mass
-  prod_mass$infer_dry <- prod_mass$mass_wet - water_avg*prod_mass$mass_wet
+  # in the ghop case, merge so the spider + mantid ghops aren't excluded
+  if(nrow(water_stats)==1) {
+    new_prod <- prod_mass %>% 
+      select(-ghop_fate) %>% 
+      left_join(water_stats[2:3], by='product_type')
+    
+    new_prod <- new_prod %>% 
+      mutate(infer_dry = mass_wet - percent_mean*mass_wet/100)
+    new_prod[which(!is.na(new_prod$mass_dry)),]$infer_dry <- NA
+    
+  } else{
+    new_prod <- left_join(prod_mass, water_stats[1:3], by=c('ghop_fate', 'product_type'))
+  }
   
-  # returns entire tibble with new inferred prod dry mass
-  prod_mass
+  # returns entire tibble with new vars + stats on dry samples
+  list(new_prod, water_stats)
+}
+
+make_names <- function(my_tbl) {
+  my_names <- colnames(my_tbl)
+  names_tbl <- tibble(my_names)
+  write_csv(names_tbl, 'C:/Users/yaya/Dropbox/1 Ecologist/2 experiments/5 predator poo/results/2_names.csv')
 }
