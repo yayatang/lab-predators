@@ -49,6 +49,9 @@ properties_m <- read_csv(here::here("data/1_feeding.obs_mantid.csv")) %>%
          ooth_tube_wet = ooth.tube.wet,
          ooth_tube_dry = ooth.tube.dry)
 
+#***get spider feeding data!***
+# properties_s <- read_csv(here::here())
+
 #==========================================================
 # 3. PREDATOR PRODUCTS
 #==========================================================
@@ -97,20 +100,19 @@ tube_trts2$rep <- as.numeric(tube_trts2$rep)
 #====
 # import dry soil data, rename col
 soil_raw <- read_csv(here::here('data/IRGA prep/00_setup_2-tubes-soil.csv'))
-colnames(soil_raw) <- c('tubeID', 'mass_tube', 'target_soil', 'target_tube_soil', 'actual_tube_soil')
+colnames(soil_raw) <- c('tube_num', 'mass_tube', 'target_soil', 'target_tube_soil', 'actual_tube_soil')
 
 # remove tube values 
 soil_added <- soil_raw %>% 
   mutate(soil_actual = actual_tube_soil - mass_tube) %>% 
-  select(tubeID, soil_actual) %>% 
-  rename(tube_num = tubeID)
+  select(tube_num, soil_actual)
 
 lookup1 <- left_join(tube_trts2, soil_added, by=c('tube_num'))
 
 #===
 #import amendment data
 prey_raw <- read_csv(here::here('data/IRGA prep/1_trt_mass.csv'))
-colnames(prey_raw) <- c('trt', 'rep', 'tube_soil', 'tube_soil_trt')
+colnames(prey_raw) <- c('tube_num', 'trt', 'rep', 'tube_soil', 'tube_soil_trt')
 
 sample_added <- prey_raw %>% 
   mutate(trt_added_mass = tube_soil_trt - tube_soil) %>% 
@@ -149,7 +151,7 @@ tube_lookup <- unique(irga_daily[lookup_names])
 #==========================================================
 # 6. WRITE COMBINED FILE
 #==========================================================
-# #=== write to file, 
+# #=== write to file,
 write_csv(prey_g, here::here('results/1_prey.csv'))
 write_csv(pred_prod, here::here('results/1_products.csv'))
 write_csv(properties_m, here::here('results/1_properties.csv'))
