@@ -2,7 +2,6 @@ library(tidyverse)
 library(zoo)
 source(here::here('src/yaya_fxns.r'))
 
-
 data0_raw  <- readRDS(here::here('results/2_irga.rds'))
 #====
 # import treatment data and convert it to factors with levels
@@ -10,7 +9,7 @@ trt_key <- read_csv(here::here('data/0_trt-key.csv')) %>%
   arrange(trt_order)
 trt_key$trt <- factor(trt_key$trt, levels=trt_key$trt[order(trt_key$trt_order)])
 
-# read imported and declare factor levels
+# read imported data and declare factor levels
 data1_orig <- data0_raw %>% 
   arrange(tube_num) %>% 
   rename(phase_count = incub_count)
@@ -50,27 +49,7 @@ loess_whc <- loess_moisture$whc100.fresh
 # convert "fresh" soil values into actual dry soil
 data1_orig <- data1_orig %>% 
   mutate(soil_dry = round(data1_orig$soil_actual - (data1_orig$soil_actual*(loess_gmc/100)), digits=4))
-# 
-# # did this in a previous sheet
-# # TO DELETE
-# #=====
-# #adjust by biomass, un/comment for adjusted values
-# amendments_raw <- read_csv(here::here('data/IRGA prep/1_trt_mass.csv'))
-# colnames(amendments_raw) <- c('tube_num', 'trt', 'rep', 'before', 'after')
-# amendments_raw$trt <- factor(amendments_raw$trt, levels=trt_key$trt[order(trt_key$trt_order)])
-# amendments_raw$rep <- as.integer(amendments_raw$rep)
-# amendments_orig <- amendments_raw %>%
-#   left_join(tube_trt_info, all.x=TRUE, by=c('trt', 'rep')) %>%
-#   mutate(amend_mass = if_else(trt != 'C' & trt != 'R', after - before, NA_real_))
-# 
-# amendments_orig$amend_mass[is.na(amendments_orig$amend_mass)] <- 1
-# amendments_clean <- amendments_orig %>%
-#   select(tube_num, amend_mass)
-# 
-# data1_amends <- inner_join(data1_orig, amendments_clean)
-# # ????? what is this??
-# data1_amends$tube_perday <- data1_amends$tube_perday/data1_amends$amend_mass
-# 
+
 #====
 # known standard gas CO2 ppm value
 std_ppm <- 1997
@@ -116,14 +95,15 @@ data3_individual <- data2_clean %>%
 # create an empty tibble for all tubes across all days (to infer/calc)
 grid_vals <- as_tibble(expand.grid(all_tubes, all_days))
 colnames(grid_vals) <- c("tube_num", "exp_count")
+grid_vals <- left_join(grid_vals, tube_key)
 
 # merge data with empty tibble, and add phase variable
-data4_gapped <- left_join(grid_vals, data3_individual,by=c('tube_num','exp_count'))
+data4_gapped <- left_join(grid_vals, data3_individual)
 data4_gapped <- data4_gapped %>% 
   mutate(phase = if_else(data4_gapped$exp_count <= max_p1, 1, 2),
-         real_data =  if_else(is.na(data4_gapped$real_data), FALSE, TRUE)) %>% 
-  select(-trt, -tubeID) %>% 
-  left_join(tube_key)
+         phase_count = if_else(data4_gapped$phase == 2, exp_count - max_p1, exp_count),
+         real_data =  if_else(is.na(data4_gapped$real_data), FALSE, TRUE))
+  #***alternatively to the above, merge with tube_num, exp_count, and phase data
 data4_gapped <- select(data4_gapped, tube_num, tubeID, trt, rep, everything())
 
 # fill out tibble with inferred data for each tube
@@ -131,8 +111,7 @@ data5_inferred <- data4_gapped %>%
   group_by(tube_num) %>%
   arrange(exp_count) %>%
   mutate(infer_tube_total_daily = na.approx(tube_perday),
-         infer_tube_diff_daily = na.approx(tube_diff)) %>% 
-  select(-phase_count)
+         infer_tube_diff_daily = na.approx(tube_diff))
 
 data6_cumul <- data5_inferred %>% 
   group_by(tube_num) %>% 
@@ -165,5 +144,7 @@ all_summarized_by_trt <- full_join(summ_by_trt_daily, summ_by_trt_cumul, by=c('t
 data8_to_graph <- left_join(data7_filled, all_summarized_by_trt, by=c('trt', 'exp_count'))
 data8_to_graph[which(is.na(data8_to_graph$se)),]$by_trt_cumul_se <- NA
 data8_to_graph[which(is.na(data8_to_graph$se)),]$by_trt_daily_se <- NA
+data8_to_graph[which(data8_to_graph$ghop_fate=="ghop"),]$ghop_fate <- 'carcass'
 
+# write all data, including daily, gross, net, and cumulative values
 saveRDS(data8_to_graph, "results/3_data_to_graph.rds") # for saving factor levels

@@ -233,3 +233,12 @@ make_names <- function(my_tbl) {
   names_tbl <- tibble(my_names)
   write_csv(names_tbl, 'C:/Users/yaya/Dropbox/1 Ecologist/2 experiments/5 predator poo/results/2_names.csv')
 }
+
+add_phase <- function(my_df) {
+  # max_p1 <- get_phase1_max(my_df)
+  max_p1 <- 54
+
+  my_df <- my_df %>%
+    mutate(phase = if_else(my_df$exp_count <= max_p1, 1, 2),
+           phase_count = if_else(my_df$phase == 2, exp_count - max_p1, exp_count))
+}

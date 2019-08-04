@@ -5,173 +5,112 @@ source(here::here('src/yaya_fxns.R'))
 imported_data <- readRDS("results/3_data_to_graph.rds") %>% 
   filter(trt != 'R')
 trt_key <- unique(imported_data$trt)
-max_p1 <- get_phase1_max(imported_data)
 
-#un comment to make daily plots by tube
-# for one plot with conditional to make it tube vs trt
-daily_plot <- function(graph_unit, graph_data, max_p1, trt_to_plot) {
-  # unit 1 = tube
-  # unit 2 = treatment
-  
-  if(graph_unit==1){
-    #should be replaced with "map" function to plotly all treatments
-    
-    graph_data <- filter(graph_data, trt==trt_to_plot)
-    
-    plot_by_tube <- ggplot(graph_data, aes(exp_count, infer_tube_diff_daily, color=tubeID)) +
-      # facet_grid(~phase, scales="free") +
-      geom_vline(xintercept=max_p1) +
-      geom_hline(yintercept=0) +
-      geom_line(size=0.5) +
-      geom_point(size=0.7) +
-      geom_errorbar(aes(ymin=infer_tube_diff_daily-ctrl_se, ymax=infer_tube_diff_daily+ctrl_se), width=0.3) +
-      labs(x="Experimental days lapsed", y="Daily CO2-C") +
-      ggtitle(paste('Daily diff CO2-C values by tube'))
-    ggplotly(plot_by_tube)
-  } else {
-    plot_by_treatment <- ggplot(graph_data, aes(exp_count, by_trt_cumul_mean, color=trt)) +
-      # facet_grid(~phase, scales="free") +
-      geom_vline(xintercept=max_p1) +
-      geom_hline(yintercept=0) +
-      geom_line(aes(group=trt), size=0.5) +
-      geom_point(size=0.7) +
-      geom_errorbar(
-        aes(ymin = by_trt_cumul_mean - by_trt_cumul_se,
-            ymax = by_trt_cumul_mean + by_trt_cumul_se), width=0.3) +
-      labs(x="Experimental days lapsed", y="cumul CO2-C") +
-      ggtitle(paste('Cumulative diff CO2-C values by treatment'))
-    ggplotly(plot_by_treatment)
-  }
-}
-# user_input <- readline("Which treatment?")
-# trt_to_plot <- as.character(user_input)
-
-trt_to_plot <- 'WS'
-send_unit <- 1
-daily_plot(send_unit, imported_data, max_p1, trt_to_plot)
-# 
-# # trying to automate with purrr
-# diff_plots <- imported_data %>% 
-#   split(.$trt) %>% 
-#   map(~daily_plot(send_unit, ., max_p1, trt_to_plot))
-
-
-# uncomment to re-functionalize vvv
+#========
 # all_plots <- function(graph_data, max_p1) {
 
+# rename vars for clarity
 graph_data <- imported_data %>% 
-  filter(trt!='R',
-         trt!='WN',
-         trt!='WS',
-         trt!='WW')
+  filter(trt!='WN')
+# rename(tube_net = tube_diff,
+#        infer_tube_daily_gross = infer_tube_total_daily,
+#        infer_tube_daily_net = infer_tube_diff_daily,
+#        by.tube_cumul_gross = by_tube_total_cumul,
+#        by.trt_daily_gross = by_trt_daily_mean,
+#        by.trt_daily_se = by_trt_daily_se,
+#        by.trt_cumul_gross = by_trt_cumul_mean,
+#        by.trt_cumul_se = by_trt_cumul_se)
 
-var_to_graph <- c('infer_tube_total_daily',
-                  'by_tube_total_cumul',
-                  'infer_tube_diff_daily',
-                  'by_tube_diff_cumul',
-                  'by_trt_daily_mean',
-                  'by_trt_cumul_mean')
-se_to_graph <- c(rep(c('ctrl_se'),4),
-                 'by_trt_daily_se',
-                 'by_trt_cumul_se')
-graph_group <- c(rep(c('tubeID'),4), rep(c('trt'),2))
-y_titles <- rep(c('Daily CO2-C','Cumulative CO2-C'),3)
-plot_titles <- c('Daily CO2 Total by Tube',
-                 'Cumulative CO2 Total by tube',
-                 'Daily CO2 difference from control, by tube',
-                 'Cumulative CO2 by tube',
-                 'Daily CO2 difference by treatment, adjusted',
-                 'Cumulative CO2 by treatment, biomass adjusted')
-dynamic_data <- tibble(var_to_graph, se_to_graph, graph_group, y_titles, plot_titles)
+# graph_data <- imported_data %>% 
+#   filter(trt== 'MA' | trt=='WA')
 
-# graph_data
-#   exp_count
-#   var to graph
-#   tubeID
-#   se var
-#   y axis title
-#   graph overall title
-#   
-#   1 = daily total by tube
-#   2 = cumul total by tube
-#   3 = daily diff by tube
-#   4 = cumul diff by tube
-#   5 = daily diff by treatment mean
-#   6 = cumul diff by treatment mean
-# NEW!!!!!
-#   7 = daily total by treatment mean
-#   8 = cumul total(gross) by treatment mean
-#   
-#   infer_tube_total_daily
-#   infer_tube_diff_daily
-#   by_tube_diff_cumul
-#   by_tube_total_cumul
-#   by_trt_daily_mean (+ by_trt_daily_se)
-#   by_trt_cumul_mean (+ by_trt_cumul_se)
+#=====
+# prepping data into two tables for graphing
+# tube table
+# 0) daily values ready
+# 1) calculate cumulative vals, 
+# 2) calculate phase cumulative vals
 
-# all_plots <- htmltools::tagList()
+by_tube <- graph_data %>%
+  group_by(tubeID) %>%
+  arrange(exp_count) %>%
+  mutate(cumul_gross = order_by(exp_count, cumsum(infer_tube_total_daily)),
+         cumul_diff = order_by(exp_count, cumsum(infer_tube_diff_daily))) %>%
+  rename(tube_se = ctrl_se) %>% # *** check cumul variable names
+  group_by(tubeID, phase) %>%
+  mutate(cumul_phase_gross = order_by(exp_count, cumsum(infer_tube_total_daily)),
+         cumul_phase_diff = order_by(exp_count, cumsum(infer_tube_diff_daily))) %>% 
+  ungroup()
 
-# cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#0072B2", "#D55E00", "#CC79A7", "#F0E442")
-cbbPalette <- c("#000000", "#E69F00", "#56B4E9", "#009E73", "#0072B2", "#D55E00", "#CC79A7", "#F0E442")
+saveRDS(by_tube, here::here('results/4_tubes_to_plot.rds'))
 
-for (i in seq_along(dynamic_data)){
-  # # i is the type of graph, according to the titles above
-  # i <- 1
-  selected_data <- graph_data %>% 
-    select(tube_num, tubeID, exp_count, trt, rep, !!dynamic_data$var_to_graph[[i]], 
-           !!dynamic_data$se_to_graph[[i]], !!dynamic_data$graph_group[[i]], ghop_fate)
-  renamed_data <- selected_data %>% 
-    rename(graph_yvar = !!dynamic_data$var_to_graph[[i]],
-           graph_se = !!dynamic_data$se_to_graph[[i]])
+#------------------------------------
 
-  if (i >= 5) {
-    plot_data <- renamed_data %>% 
-      ungroup() %>% 
-      filter(rep==1) %>% 
-      rename(graph_unit = trt) %>% 
-      select(-tubeID, -rep)
-    
-  } else {
-    plot_data <- renamed_data %>%
-      rename(graph_unit = tubeID) %>% 
-      select(-trt)}
-  
-  
-  any_plot <- ggplot(plot_data, aes(exp_count, graph_yvar, color=graph_unit)) +
-    # facet_grid(~phase, scales="free") +
-    geom_vline(xintercept=max_p1, color="grey", size = 0.3) +
-    geom_hline(yintercept=0) +
-    geom_line(size=0.5, aes(linetype = ghop_fate)) +
-    # geom_point(size=1) +
-    # geom_errorbar(aes(ymin = graph_yvar - graph_se,
-    #     ymax = graph_yvar + graph_se),
-    # width=0.3) +
-    labs(x="Experimental days lapsed", y=dynamic_data$y_titles[[i]]) +
-    ggtitle(paste(dynamic_data$plot_titles[[i]])) +
-    # scale_color_manual(values = cbbPalette) +
-    theme(plot.title = element_text(hjust = 0.5),
-          panel.border = element_blank(),
-          # panel.grid.major = element_blank(),
-          # panel.grid.minor = element_blank(), 
-          panel.background = element_blank(),
-          axis.line = element_line(colour = "black"))
-  
-  # any_plot$labels$fill <- "Soil input treatment"
-  
-  any_plot
-  ggsave(paste0('results/2019.07_',i,'_by_', dynamic_data$graph_group[i], '.png'), width=5, height=4, dpi=1000)
-  
-  #==== make and save the interactive ggplot aka ggplotly
-  any_plotly <- ggplotly(any_plot)
-  any_plotly
-  save_path <- paste0(here::here(),'/results/2019.07_plotly_',i,'_by_', dynamic_data$graph_group[i],'.html')
-  htmlwidgets::saveWidget(as_widget(any_plotly), save_path)
-}
+# treatment table
+# 1) generate mean daily gross values, and se by treatment
+# 2) sum up cumulative values by phase and by exp_count
+tubes_meta <- unique(by_tube[,c('trt', 'ghop_fate', 'exp_count', 'real_data')])
+
+# filter (inferred) daily data for control tubes only
+c_tube_daily <- by_tube %>% 
+  filter(trt == 'C') %>% 
+  rename(c_daily_gross = infer_tube_total_daily,
+         c_cumul_gross = by_tube_total_cumul, # c_cumul_phase = cumul_phase_gross,
+         c_daily_se = tube_se) %>% 
+  select(tubeID, ghop_fate, trt, exp_count, phase, phase_count, real_data, 
+         c_daily_gross, c_cumul_gross, c_daily_se) %>% 
+  ungroup() %>% 
+  add_phase()
 
 
-# all_plots[[i]] <- as_widget(ggplotly(any_plot))
-# all_plots[[i]] <- any_plot
-# }
-# }
+ # calculate avg control tube daily values
+c_trt_daily <- c_tube_daily %>%
+  group_by(trt, exp_count) %>%
+  # summarise(c_daily_mean = mean(c_daily_gross))
+  summarise_each(list(~mean(., na.rm=TRUE), ~se), c_daily_gross) %>% 
+  rename(c_daily_mean = mean,
+         c_daily_se = se)
 
-# exec(all_plots, ggplotly)
+# calculate avg cumulative CO2 for control tubes
+c_trt_cumul <- c_tube_daily%>% 
+  group_by(trt, exp_count) %>% 
+  summarise_each(list(~mean(., na.rm=TRUE), ~se), c_cumul_gross) %>% 
+  rename(c_cumul_mean = mean,
+         c_cumul_se = se) %>% 
+  ungroup()
+
+# merge cumulative values with daily values for a mega control table
+c_trt_summarized <- c_trt_cumul %>% 
+  left_join(tubes_meta) %>% 
+  left_join(c_trt_daily) %>%
+  select(-trt)
+
+by_trt_daily <- by_tube %>% 
+  group_by(trt, exp_count) %>% 
+  summarise_each(list(~mean(., na.rm=TRUE), ~se), infer_tube_total_daily) %>% 
+  rename(trt_daily_gross = mean,
+         trt_daily_se = se) %>% 
+  left_join(c_trt_summarized)
+
+by_trt_cumul <- by_tube %>% 
+  group_by(trt, exp_count) %>% 
+  summarise_each(list(~mean(., na.rm=TRUE), ~se), cumul_gross) %>% 
+  rename(trt_cumul_gross = mean,
+         trt_cumul_se = se)
+
+trt_summ <- full_join(by_trt_daily, by_trt_cumul) 
+trt_summ <- trt_summ %>% 
+  left_join(tubes_meta) 
+
+trt_summ <- trt_summ %>%
+  left_join(c_trt_cumul) %>%  # merge control trt data
+  mutate(trt_daily_net = trt_daily_gross - c_daily_mean,
+         trt_cumul_net = trt_cumul_gross - c_cumul_mean) %>% 
+  select(trt, exp_count, ghop_fate, everything()) %>% 
+  ungroup()
+
+trt_summ[trt_summ$real_data == FALSE,]$c_cumul_se <- NA
+trt_summ[trt_summ$real_data == FALSE,]$trt_daily_se <- NA
+trt_summ[trt_summ$real_data == FALSE,]$trt_cumul_se <- NA
+
+saveRDS(trt_summ, here::here('results/4_trts_to_plot.rds'))
