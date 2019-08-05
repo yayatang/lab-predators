@@ -49,7 +49,8 @@ saveRDS(by_tube, here::here('results/4_tubes_to_plot.rds'))
 # treatment table
 # 1) generate mean daily gross values, and se by treatment
 # 2) sum up cumulative values by phase and by exp_count
-tubes_meta <- unique(by_tube[,c('trt', 'ghop_fate', 'exp_count', 'real_data')])
+# for merging treatment meta data
+trt_meta <- unique(by_tube[,c('trt', 'ghop_fate', 'exp_count', 'real_data')])
 
 # filter (inferred) daily data for control tubes only
 c_tube_daily <- by_tube %>% 
@@ -57,19 +58,20 @@ c_tube_daily <- by_tube %>%
   rename(c_daily_gross = infer_tube_total_daily,
          c_cumul_gross = by_tube_total_cumul, # c_cumul_phase = cumul_phase_gross,
          c_daily_se = tube_se) %>% 
-  select(tubeID, ghop_fate, trt, exp_count, phase, phase_count, real_data, 
-         c_daily_gross, c_cumul_gross, c_daily_se) %>% 
+  # select(tubeID, ghop_fate, trt, exp_count, phase, phase_count, real_data, 
+  # c_daily_gross, c_cumul_gross, c_daily_se) %>% 
   ungroup() %>% 
   add_phase()
 
+#=========
+# for UNADJUSTED values
 
- # calculate avg control tube daily values
+# calculate avg control tube daily values
 c_trt_daily <- c_tube_daily %>%
   group_by(trt, exp_count) %>%
-  # summarise(c_daily_mean = mean(c_daily_gross))
   summarise_each(list(~mean(., na.rm=TRUE), ~se), c_daily_gross) %>% 
   rename(c_daily_mean = mean,
-         c_daily_se = se)
+         c_daily_se = se) 
 
 # calculate avg cumulative CO2 for control tubes
 c_trt_cumul <- c_tube_daily%>% 
@@ -85,12 +87,13 @@ c_trt_summarized <- c_trt_cumul %>%
   left_join(c_trt_daily) %>%
   select(-trt)
 
+# unadjusted starts here
 by_trt_daily <- by_tube %>% 
   group_by(trt, exp_count) %>% 
   summarise_each(list(~mean(., na.rm=TRUE), ~se), infer_tube_total_daily) %>% 
   rename(trt_daily_gross = mean,
          trt_daily_se = se) %>% 
-  left_join(c_trt_summarized)
+  left_join(c_trt_summarized) 
 
 by_trt_cumul <- by_tube %>% 
   group_by(trt, exp_count) %>% 
@@ -100,17 +103,61 @@ by_trt_cumul <- by_tube %>%
 
 trt_summ <- full_join(by_trt_daily, by_trt_cumul) 
 trt_summ <- trt_summ %>% 
-  left_join(tubes_meta) 
+  left_join(trt_meta) %>% 
+  ungroup()
 
 trt_summ <- trt_summ %>%
   left_join(c_trt_cumul) %>%  # merge control trt data
   mutate(trt_daily_net = trt_daily_gross - c_daily_mean,
          trt_cumul_net = trt_cumul_gross - c_cumul_mean) %>% 
-  select(trt, exp_count, ghop_fate, everything()) %>% 
-  ungroup()
+  select(trt, exp_count, ghop_fate, everything()) 
 
 trt_summ[trt_summ$real_data == FALSE,]$c_cumul_se <- NA
 trt_summ[trt_summ$real_data == FALSE,]$trt_daily_se <- NA
 trt_summ[trt_summ$real_data == FALSE,]$trt_cumul_se <- NA
 
+trt_summ <- add_phase(trt_summ)
+
 saveRDS(trt_summ, here::here('results/4_trts_to_plot.rds'))
+
+#======================
+# for adjusting predator treatments to ghop input (thus no NET values)
+# for getting the right origin_dry data
+tubes_meta <- unique(by_tube[,c('tube_num', 'trt', 'ghop_fate', 'real_data','origin_dry')]) %>% 
+  na.omit()
+
+by_tube_a <- by_tube %>% 
+  filter(trt != 'C') %>% 
+  left_join(tubes_meta) %>%
+  mutate(daily_gross_a = infer_tube_total_daily/origin_dry,
+         cumul_gross_a = cumul_gross/origin_dry)
+
+by_trt_daily_a <- by_tube_a %>% 
+  group_by(trt, exp_count) %>% 
+  summarise_each(list(~mean(., na.rm=TRUE), ~se), daily_gross_a) %>% 
+  rename(trt_daily_gross = mean,
+         trt_daily_se = se) %>% 
+  left_join(c_trt_summarized)
+
+by_trt_cumul_a <- by_tube_a %>% 
+  group_by(trt, exp_count) %>% 
+  summarise_each(list(~mean(., na.rm=TRUE), ~se), cumul_gross_a) %>% 
+  rename(trt_cumul_gross = mean,
+         trt_cumul_se = se) %>% 
+  ungroup()
+
+trt_summ_a <- full_join(by_trt_daily_a, by_trt_cumul_a) 
+trt_summ_a <- trt_summ_a %>% 
+  left_join(tubes_meta) 
+
+trt_summ_a <- trt_summ_a %>%
+  left_join(c_trt_cumul) %>%  # merge control trt data
+  select(trt, exp_count, ghop_fate, everything()) 
+
+trt_summ_a[trt_summ_a$real_data == FALSE,]$c_cumul_se <- NA
+trt_summ_a[trt_summ_a$real_data == FALSE,]$trt_daily_se <- NA
+trt_summ_a[trt_summ_a$real_data == FALSE,]$trt_cumul_se <- NA
+
+trt_summ_a <- add_phase(trt_summ_a)
+
+saveRDS(trt_summ_a, here::here('results/4_trts_to_plot_adj.rds'))
