@@ -235,10 +235,9 @@ make_names <- function(my_tbl) {
 }
 
 add_phase <- function(my_df) {
-  # max_p1 <- get_phase1_max(my_df)
   max_p1 <- 54
-
+  # cat(max_p1)
   my_df <- my_df %>%
-    mutate(phase = if_else(my_df$exp_count <= max_p1, 1, 2),
-           phase_count = if_else(my_df$phase == 2, exp_count - max_p1, exp_count))
+    mutate(phase = if_else(exp_count <= max_p1, 1, 2),
+           phase_count = if_else(phase == 2, exp_count - max_p1, exp_count))
 }
