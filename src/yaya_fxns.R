@@ -242,37 +242,40 @@ add_phase <- function(my_df) {
            phase_count = if_else(phase == 2, exp_count - max_p1, exp_count))
 }
 
+# # ggplot with my customizations
+# plot_by_trt <- function(my_df, my_xy, pred_labs) {
+#   max_p1 <- get_phase1_max(my_df)
+#   
+#   trt_plot <- ggplot(my_df, aes_string(x = my_xy[1], y = my_xy[2], color = my_xy[3])) +
+#     # facet_grid(~phase, scales="free") +
+#     geom_vline(xintercept = max_p1) +
+#     geom_hline(yintercept = 0) +
+#     geom_line(size = 0.5) +
+#     geom_point(size = 0.7) +
+#     # geom_errorbar(aes(
+#     #   ymin = my_xy[2] - my_xy[3], 
+#     #   ymax = my_xy[2] + my_xy[3]), 
+#     #   width = 0.3) +
+#     guides(fill = guide_legend(title=NULL)) +
+#     # scale_fill_discrete(name = "grasshopper fate")
+#     labs(title = pred_labs[3]) #, x = pred_labs[1], y = pred_labs[2])
+#   
+#   ggplotly(trt_plot)
 
-# ggplot with my customizations
-plot_by_trt <- function(my_df, my_xy, my_labs) {
-  max_p1 <- get_phase1_max(my_df)
-  
-  trt_plot <- ggplot(my_df, aes_string(x = my_xy[1], my_xy[2], color = trt)) +
-    # facet_grid(~phase, scales="free") +
-    geom_vline(xintercept = max_p1) +
-    geom_hline(yintercept = 0) +
-    geom_line(size = 0.5) +
-    geom_point(size = 0.7) +
-    geom_errorbar(aes(
-      ymin = infer_tube_diff_daily - tube_se, 
-      ymax = infer_tube_diff_daily + tube_se), 
-      width = 0.3) +
-    labs(x = my_labs[1], y = my_labs[2]) +
-    ggtitle(my_labs[2])
-  
-  ggplotly(plot_by_tube)
-  # 
-  #   } else {
-  #   plot_by_treatment <- ggplot(graph_data, aes(exp_count, by_trt_cumul_mean, color=trt)) +
-  #     # facet_grid(~phase, scales="free") +
-  #     geom_vline(xintercept=max_p1) +
-  #     geom_hline(yintercept=0) +
-  #     geom_line(aes(group=trt), size=0.5) +
-  #     geom_point(size=0.7) +
-  #     geom_errorbar(
-  #       aes(ymin = by_trt_cumul_mean - by_trt_cumul_se, 
-  #           ymax = by_trt_cumul_mean + by_trt_cumul_se), width=0.3) +
-  #     labs(x="Experimental days lapsed", y="cumul CO2-C") +
-  #     ggtitle(paste('Daily diff CO2-C values by treatment'))
-  #   ggplotly(plot_by_treatment)
-}
+# plot_by_trt(compare_pred, pred_vars, pred_labs)
+
+#   } else {
+#   plot_by_treatment <- ggplot(graph_data, aes(exp_count, by_trt_cumul_mean, color=trt)) +
+#     # facet_grid(~phase, scales="free") +
+#     geom_vline(xintercept=max_p1) +
+#     geom_hline(yintercept=0) +
+#     geom_line(aes(group=trt), size=0.5) +
+#     geom_point(size=0.7) +
+#     geom_errorbar(
+#       aes(ymin = by_trt_cumul_mean - by_trt_cumul_se, 
+#           ymax = by_trt_cumul_mean + by_trt_cumul_se), width=0.3) +
+#     labs(x="Experimental days lapsed", y="cumul CO2-C") +
+#     ggtitle(paste('Daily diff CO2-C values by treatment'))
+#   ggplotly(plot_by_treatment)
+
+#}

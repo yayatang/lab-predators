@@ -26,19 +26,22 @@ plot_pred_all <- ggplot(compare_pred, aes(x = exp_count, y = trt_cumul_gross,
   geom_line(size = 0.5) +
   geom_point(size = 0.7) +
   geom_errorbar(aes(ymin = trt_cumul_gross - trt_cumul_se,
-    ymax = trt_cumul_gross + trt_cumul_se,
-    width = 0.3)) +
+  ymax = trt_cumul_gross + trt_cumul_se,
+  width = 0.3)) +
   guides(fill = guide_legend(title=NULL)) +
-  labs(title = 'Cumulative gross CO2, ghop adjusted') #, x = pred_labs[1], y = pred_labs[2])
+  labs(title = 'cumul gross CO2, ghop adjusted')
 
-ggplotly(plot_pred_all)
+p1 <- ggplotly(plot_pred_all)
+ggsave(paste0('results/5.1_compare_predators.png'), width=5, height=4, dpi=1000)
 
-#==============================================================
-# 2. compare cumulative predator poops, adjusted to poop mass
-trts_poop_adj <- readRDS('results/4_trts_to_plot_adj_poop.rds')%>% #adjusted vals
+ #==============================================================
+# 2. compare cumulative predator poops, adjusted to poop/amendment mass
+trts_amend_adj <- readRDS('results/4_trts_to_plot_adj_poop.rds')%>% #adjusted vals
   ungroup()
+# including cumulative values per phase
+trts_amend_adj <- readRDS(by_tube_phase, here::here('results/4_tubes_by-phase.rds'))
 
-compare_poop <- trts_poop_adj %>% 
+compare_poop <- trts_amend_adj %>% 
   filter(trt == 'WE' | trt=='ME')
 
 plot_poop_all <- ggplot(compare_poop, aes(x = exp_count, y = trt_cumul_gross, 
@@ -52,12 +55,14 @@ plot_poop_all <- ggplot(compare_poop, aes(x = exp_count, y = trt_cumul_gross,
                     ymax = trt_cumul_gross + trt_cumul_se,
                     width = 0.3)) +
   guides(fill = guide_legend(title=NULL)) +
-  labs(title = 'Cumulative gross CO2, product adjusted') #, x = pred_labs[1], y = pred_labs[2])
+  labs(title = 'Cumulative gross CO2, product adjusted')
 
-ggplotly(plot_poop_all)
+p2 <- ggplotly(plot_poop_all)
+ggsave(paste0('results/5.2_compare_predators_poop.png'), width=5, height=4, dpi=1000)
 
 #==============================================================
 # 3. compare cumulative predator poops, adjusted to ghop mass
+# THIS COMPARISON DOESNT MAKE SENSE
 compare_poop_origin <- trts_ghop_adj %>% 
   filter(trt == 'WE' | trt == 'ME')
 
@@ -72,15 +77,16 @@ plot_poop_origin <- ggplot(compare_poop_origin, aes(x = exp_count, y = trt_cumul
                     ymax = trt_cumul_gross + trt_cumul_se,
                     width = 0.3)) +
   guides(fill = guide_legend(title=NULL)) +
-  labs(title = 'Cumulative gross CO2, ghop adjusted') #, x = pred_labs[1], y = pred_labs[2])
+  labs(title = 'Cumulative gross CO2, ghop adjusted')
 
-ggplotly(plot_poop_origin)
+p3 <- ggplotly(plot_poop_origin)
+ggsave(paste0('results/5.3_compare_poop.png'), width=5, height=4, dpi=1000)
 
 #==============================================================
 # 4. predator ALL vs predator products summed
 
 # graph A: widow
-compare_widow <- trts_ghop_adj %>% 
+compare_widow <- trts_amend_adj %>% 
   filter(trt == 'WE' | trt == 'WW' | trt == 'WA')
 # widow_summed <- compare_widow %>% 
 #   filter(trt != 'WA') %>% 
@@ -98,9 +104,11 @@ plot_widow <- ggplot(compare_widow, aes(x = exp_count, y = trt_cumul_gross,
                     ymax = trt_cumul_gross + trt_cumul_se,
                     width = 0.3)) +
   guides(fill = guide_legend(title=NULL)) +
-  labs(title = 'Cumulative gross CO2, ghop adjusted') #, x = pred_labs[1], y = pred_labs[2])
+  labs(title = 'Cumulative gross CO2, ghop adjusted')
 
-ggplotly(plot_widow)
+p4a <- ggplotly(plot_widow)
+ggsave(paste0('results/5.4a_compare_widow.png'), width=5, height=4, dpi=1000)
+
 #=====================
 # graph B: mantids
 compare_mantid <- trts_ghop_adj %>% 
@@ -121,15 +129,15 @@ plot_mantid <- ggplot(compare_mantid, aes(x = exp_count, y = trt_cumul_gross,
                     ymax = trt_cumul_gross + trt_cumul_se,
                     width = 0.3)) +
   guides(fill = guide_legend(title=NULL)) +
-  labs(title = 'Cumulative gross CO2, ghop adjusted') #, x = pred_labs[1], y = pred_labs[2])
+  labs(title = 'Cumulative gross CO2, ghop adjusted')
 
-ggplotly(plot_mantid)
+p4b <- ggplotly(plot_mantid)
+ggsave(paste0('results/5.4b_compare_mantid.png'), width=5, height=4, dpi=1000)
 
 
 #==============================================================
 # 5. comparing the effect of silk (widow wrapped vs widow remains)
-# graph A: silk
-compare_silk <- trts_ghop_adj %>% 
+compare_silk <- trts_amend_adj %>%  #
   filter(trt == 'WW' | trt == 'WR')
 # silk_summed <- compare_silk %>% 
 #   filter(trt != 'WA') %>% 
@@ -147,6 +155,16 @@ plot_silk <- ggplot(compare_silk, aes(x = exp_count, y = trt_cumul_gross,
                     ymax = trt_cumul_gross + trt_cumul_se,
                     width = 0.3)) +
   guides(fill = guide_legend(title=NULL)) +
-  labs(title = 'Cumulative gross CO2, ghop adjusted') #, x = pred_labs[1], y = pred_labs[2])
+  labs(title = 'Cumulative gross CO2, ghop adjusted')
 
-ggplotly(plot_silk)
+p5 <- ggplotly(plot_silk)
+ggsave(paste0('results/5.5_compare_silk.png'), width=5, height=4, dpi=1000)
+
+#=========
+# save all plots
+htmlwidgets::saveWidget(p1, here::here('results/5.1_compare_pred_all.html'), selfcontained=TRUE)
+htmlwidgets::saveWidget(p2, here::here('results/5.2_compare_pred_poop.html'), selfcontained=TRUE)
+htmlwidgets::saveWidget(p3, here::here('results/5.3_compare_poop_origin.adj.html'), selfcontained=TRUE)
+htmlwidgets::saveWidget(p4a, here::here('results/5.4a_compare_widow.html'), selfcontained=TRUE)
+htmlwidgets::saveWidget(p4b, here::here('results/5.4b_compare_mantid.html'), selfcontained=TRUE)
+htmlwidgets::saveWidget(p5, here::here('results/5.5_compare_silk.html'), selfcontained=TRUE)

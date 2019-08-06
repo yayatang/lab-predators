@@ -28,7 +28,23 @@ by_tube <- graph_data %>%
          cumul_phase_diff = order_by(exp_count, cumsum(infer_tube_diff_daily))) %>% 
   ungroup()
 
+by_tube_phase <- graph_data %>%
+  group_by(tubeID) %>%
+  arrange(exp_count) %>%
+  add_phase() %>% 
+  group_by(phase) %>% 
+  mutate(cumul_gross_phase = order_by(phase_count, cumsum(infer_tube_total_daily))) %>% 
+  ungroup() %>% 
+  mutate(cumul_gross = order_by(exp_count, cumsum(infer_tube_total_daily)),
+         cumul_diff = order_by(exp_count, cumsum(infer_tube_diff_daily))) %>%
+  rename(tube_se = ctrl_se) %>% # *** check cumul variable names
+  group_by(tubeID, phase) %>%
+  mutate(cumul_phase_gross = order_by(exp_count, cumsum(infer_tube_total_daily)),
+         cumul_phase_diff = order_by(exp_count, cumsum(infer_tube_diff_daily))) %>% 
+  ungroup()
+
 saveRDS(by_tube, here::here('results/4_tubes_to_plot.rds'))
+saveRDS(by_tube_phase, here::here('results/4_tubes_by-phase.rds'))
 
 #------------------------------------
 
