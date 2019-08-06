@@ -119,7 +119,8 @@ saveRDS(trt_summ, here::here('results/4_trts_to_plot.rds'))
 # for getting the right origin_dry data
 by_tube_a <- by_tube %>% 
   filter(trt != 'C') %>% 
-  left_join(tubes_meta) %>%
+  select(-trt, -ghop_fate, -origin_dry, -real_data) %>% 
+  left_join(tubes_meta, by='tube_num') %>%
   mutate(daily_gross_a = infer_tube_total_daily/origin_dry,
          cumul_gross_a = cumul_gross/origin_dry)
 
@@ -152,3 +153,42 @@ trt_summ_a[trt_summ_a$real_data == FALSE,]$trt_cumul_se <- NA
 trt_summ_a <- add_phase(trt_summ_a)
 
 saveRDS(trt_summ_a, here::here('results/4_trts_to_plot_adj.rds'))
+
+#======================
+# for adjusting predator poop to poop mass
+by_tube_p <- by_tube %>% 
+  filter(trt != 'C') %>% 
+  select(-trt, -ghop_fate, -origin_dry, -real_data) %>% 
+  left_join(tubes_meta, by='tube_num') %>%
+  mutate(daily_gross_p = infer_tube_total_daily/trt_added_mass,
+         cumul_gross_p = cumul_gross/trt_added_mass)
+
+by_trt_daily_p <- by_tube_p %>% 
+  group_by(trt, exp_count) %>% 
+  summarise_each(list(~mean(., na.rm=TRUE), ~se), daily_gross_p) %>% 
+  rename(trt_daily_gross = mean,
+         trt_daily_se = se) %>% 
+  left_join(c_trt_summarized)
+
+by_trt_cumul_p <- by_tube_p %>% 
+  group_by(trt, exp_count) %>% 
+  summarise_each(list(~mean(., na.rm=TRUE), ~se), cumul_gross_p) %>% 
+  rename(trt_cumul_gross = mean,
+         trt_cumul_se = se) %>% 
+  ungroup()
+
+trt_summ_p <- full_join(by_trt_daily_p, by_trt_cumul_p) 
+trt_summ_p <- trt_summ_p %>% 
+  left_join(tubes_meta) 
+
+trt_summ_p <- trt_summ_p %>%
+  left_join(c_trt_cumul) %>%  # merge control trt data
+  select(trt, exp_count, ghop_fate, everything()) 
+
+trt_summ_p[trt_summ_p$real_data == FALSE,]$c_cumul_se <- NA
+trt_summ_p[trt_summ_p$real_data == FALSE,]$trt_daily_se <- NA
+trt_summ_p[trt_summ_p$real_data == FALSE,]$trt_cumul_se <- NA
+
+trt_summ_p <- add_phase(trt_summ_p)
+
+saveRDS(trt_summ_p, here::here('results/4_trts_to_plot_adj_poop.rds'))
