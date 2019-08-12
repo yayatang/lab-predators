@@ -73,18 +73,19 @@ c_tube_daily <- by_tube %>%
 
 # calculate avg control tube daily values
 c_trt_daily <- c_tube_daily %>%
-  group_by(trt, exp_count) %>%
-  summarise_each(list(~mean(., na.rm=TRUE), ~se), c_daily_gross) %>% 
+  group_by(exp_count) %>%
+  summarize_at(vars(c_daily_gross), list(~mean(., na.rm = TRUE), ~se(.))) %>%
   rename(c_daily_mean = mean,
-         c_daily_se = se) 
+         c_daily_se = se) %>%
+  arrange(exp_count)
 
 # calculate avg cumulative CO2 for control tubes
 c_trt_cumul <- c_tube_daily%>% 
-  group_by(trt, exp_count) %>% 
-  summarise_each(list(~mean(., na.rm=TRUE), ~se), c_cumul_gross) %>% 
+  group_by(exp_count) %>% 
+  summarise_at(vars(c_cumul_gross), list(~mean(., na.rm=TRUE), ~se(.))) %>% 
   rename(c_cumul_mean = mean,
          c_cumul_se = se) %>% 
-  ungroup()
+  arrange(exp_count)
 
 # merge cumulative values with daily values for a mega control table
 c_trt_summarized <- c_trt_cumul %>% 
@@ -98,7 +99,7 @@ c_trt_summarized <- c_trt_cumul %>%
 by_trt_daily <- by_tube %>% 
   # left_join(get_ghop_fate) %>%  #makes sure there's no NAs for ghop_fate
   group_by(trt, exp_count) %>% 
-  summarise_each(list(~mean(., na.rm=TRUE), ~se), infer_tube_total_daily) %>% 
+  summarise_at(vars(infer_tube_total_daily), list(~mean(., na.rm=TRUE), ~se(.))) %>% 
   rename(trt_daily_gross = mean,
          trt_daily_se = se) %>% 
   # select(-ghop_fate) %>%
@@ -107,7 +108,7 @@ by_trt_daily <- by_tube %>%
 
 by_trt_cumul <- by_tube %>% 
   group_by(trt, exp_count) %>% 
-  summarise_each(list(~mean(., na.rm=TRUE), ~se), cumul_gross) %>% 
+  summarise_at(vars(cumul_gross), list(~mean(., na.rm=TRUE), ~se(.))) %>% 
   rename(trt_cumul_gross = mean,
          trt_cumul_se = se)
 
@@ -142,14 +143,14 @@ by_tube_a <- by_tube %>%
 
 by_trt_daily_a <- by_tube_a %>% 
   group_by(trt, exp_count) %>% 
-  summarise_each(list(~mean(., na.rm=TRUE), ~se), daily_gross_a) %>% 
+  summarise_at(vars(daily_gross_a), list(~mean(., na.rm=TRUE), ~se(.))) %>% 
   rename(trt_daily_gross = mean,
          trt_daily_se = se) %>% 
   left_join(c_trt_summarized)
 
 by_trt_cumul_a <- by_tube_a %>% 
   group_by(trt, exp_count) %>% 
-  summarise_each(list(~mean(., na.rm=TRUE), ~se), cumul_gross_a) %>% 
+  summarise_at(vars(cumul_gross_a), list(~mean(., na.rm=TRUE), ~se(.))) %>% 
   rename(trt_cumul_gross = mean,
          trt_cumul_se = se) %>% 
   ungroup()
@@ -171,16 +172,18 @@ trt_summ_a <- add_phase(trt_summ_a)
 saveRDS(trt_summ_a, here::here('results/4_trts_to_plot_adj.rds'))
 
 #======================
-# for adjusting predator poop to poop mass
+# for adjusting predator poop to poop mass (amendment mass)
 by_tube_p <- by_tube %>% 
   filter(trt != 'C') %>% 
   select(-trt, -ghop_fate, -origin_dry, -real_data) %>% 
   left_join(tubes_meta, by='tube_num') %>%
-  mutate(daily_gross_p = infer_tube_total_daily/trt_added_mass,
+  mutate(daily_gross_p = if(is.na(trt_added_mass)) NA else infer_tube_total_daily/trt_added_mass,
          cumul_gross_p = cumul_gross/trt_added_mass)
 
 by_trt_daily_p <- by_tube_p %>% 
   group_by(trt, exp_count) %>% 
+  summarise_at(vars(daily_gross_p), list(~mean(., na.rm=TRUE), ~se(.))) %>% 
+  
   summarise_each(list(~mean(., na.rm=TRUE), ~se), daily_gross_p) %>% 
   rename(trt_daily_gross = mean,
          trt_daily_se = se) %>% 
@@ -188,7 +191,7 @@ by_trt_daily_p <- by_tube_p %>%
 
 by_trt_cumul_p <- by_tube_p %>% 
   group_by(trt, exp_count) %>% 
-  summarise_each(list(~mean(., na.rm=TRUE), ~se), cumul_gross_p) %>% 
+  summarise_at(vars(cumul_gross_p), list(~mean(., na.rm=TRUE), ~se(.))) %>% 
   rename(trt_cumul_gross = mean,
          trt_cumul_se = se) %>% 
   ungroup()
@@ -207,4 +210,4 @@ trt_summ_p[trt_summ_p$real_data == FALSE,]$trt_cumul_se <- NA
 
 trt_summ_p <- add_phase(trt_summ_p)
 
-saveRDS(trt_summ_p, here::here('results/4_trts_to_plot_adj_poop.rds'))
+saveRDS(trt_summ_p, here::here('results/4_trts_to_plot_adj_amend.rds'))

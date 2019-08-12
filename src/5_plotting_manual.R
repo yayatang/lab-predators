@@ -3,6 +3,7 @@
 
 library(tidyverse)
 library(plotly)
+library(zoo)
 source(here::here('src/yaya_fxns.R'))
 
 # data from the first plot used to get universal trt + max_p1 vars
@@ -26,25 +27,36 @@ plot_pred_all <- ggplot(compare_pred, aes(x = exp_count, y = trt_cumul_gross,
   geom_line(size = 0.5) +
   geom_point(size = 0.7) +
   geom_errorbar(aes(ymin = trt_cumul_gross - trt_cumul_se,
-  ymax = trt_cumul_gross + trt_cumul_se,
-  width = 0.3)) +
-  guides(fill = guide_legend(title=NULL)) +
+                    ymax = trt_cumul_gross + trt_cumul_se,
+                    width = 0.3)) +
+    guides(fill = guide_legend(title=NULL)) +
   labs(title = 'cumul gross CO2, ghop adjusted')
 
 p1 <- ggplotly(plot_pred_all)
 ggsave(paste0('results/5.1_compare_predators.png'), width=5, height=4, dpi=1000)
+p1
+# barplot(compare_pred$trt_cumul_gross, data = compare_pred)
 
- #==============================================================
+#==============================================================
 # 2. compare cumulative predator poops, adjusted to poop/amendment mass
-trts_amend_adj <- readRDS('results/4_trts_to_plot_adj_poop.rds')%>% #adjusted vals
-  ungroup()
+trts_amend_adj <- readRDS('results/4_trts_to_plot_adj_amend.rds')%>% #adjusted vals
+  ungroup() %>% 
+  unique()
+# trts_amend_adj <- readRDS('results/4_trts_to_plot_adj_poop.rds')%>% #adjusted vals
+  # ungroup()
+
 # including cumulative values per phase
-trts_amend_adj <- readRDS(by_tube_phase, here::here('results/4_tubes_by-phase.rds'))
+# trts_amend_adj <- readRDS('results/4_tubes_by-phase.rds')
 
 compare_poop <- trts_amend_adj %>% 
-  filter(trt == 'WE' | trt=='ME')
+  filter(trt == 'WE' | trt=='ME') %>% 
+  select(-tube_num, -origin_dry) %>% 
+  unique()
 
-plot_poop_all <- ggplot(compare_poop, aes(x = exp_count, y = trt_cumul_gross, 
+compare_poop[compare_poop == "NaN"] <- NA
+compare_poop$trt_cumul_gross <-  na.approx(compare_poop$trt_cumul_gross)
+
+plot_poop_all <- ggplot(compare_poop, aes(x = exp_count, y = trt_cumul_gross,
                                           color = trt, group = trt)) +
   geom_line(aes(group=trt)) +
   geom_vline(xintercept = max_p1) +
@@ -54,11 +66,22 @@ plot_poop_all <- ggplot(compare_poop, aes(x = exp_count, y = trt_cumul_gross,
   geom_errorbar(aes(ymin = trt_cumul_gross - trt_cumul_se,
                     ymax = trt_cumul_gross + trt_cumul_se,
                     width = 0.3)) +
-  guides(fill = guide_legend(title=NULL)) +
-  labs(title = 'Cumulative gross CO2, product adjusted')
+  xlab('Experimental days lapsed') +
+  ylab('Cumulative C-CO2') + 
+  scale_fill_manual(values = c("#d8b365", "#f5f5f5", "#5ab4ac")) +
+  # scale_fill_manual(name='Treatment',
+  #                   labels = c('Mantid waste', 'Spider waste')) +
+  #                   # values = pred_colors) + 
+  ggtitle('Cumulative gross CO2, waste biomass adjusted') +
+  theme_bw() + 
+  theme(panel.border = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        axis.line = element_line(colour = "black"))
 
 p2 <- ggplotly(plot_poop_all)
-ggsave(paste0('results/5.2_compare_predators_poop.png'), width=5, height=4, dpi=1000)
+p2
+ggsave(paste0('results/5.2_compare_predators_poop.png'), width=8, height=6, dpi=1000)
 
 #==============================================================
 # 3. compare cumulative predator poops, adjusted to ghop mass
@@ -67,7 +90,7 @@ compare_poop_origin <- trts_ghop_adj %>%
   filter(trt == 'WE' | trt == 'ME')
 
 plot_poop_origin <- ggplot(compare_poop_origin, aes(x = exp_count, y = trt_cumul_gross, 
-                                          color = trt, group = trt)) +
+                                                    color = trt, group = trt)) +
   geom_line(aes(group=trt)) +
   geom_vline(xintercept = max_p1) +
   geom_hline(yintercept = 0) +
@@ -94,7 +117,7 @@ compare_widow <- trts_amend_adj %>%
 #   summarize(trt_cumul_gross, sum)
 
 plot_widow <- ggplot(compare_widow, aes(x = exp_count, y = trt_cumul_gross, 
-                                                    color = trt, group = trt)) +
+                                        color = trt, group = trt)) +
   geom_line(aes(group=trt)) +
   geom_vline(xintercept = max_p1) +
   geom_hline(yintercept = 0) +
@@ -119,7 +142,7 @@ compare_mantid <- trts_ghop_adj %>%
 #   summarize(trt_cumul_gross, sum)
 
 plot_mantid <- ggplot(compare_mantid, aes(x = exp_count, y = trt_cumul_gross, 
-                                        color = trt, group = trt)) +
+                                          color = trt, group = trt)) +
   geom_line(aes(group=trt)) +
   geom_vline(xintercept = max_p1) +
   geom_hline(yintercept = 0) +
@@ -145,7 +168,7 @@ compare_silk <- trts_amend_adj %>%  #
 #   summarize(trt_cumul_gross, sum)
 
 plot_silk <- ggplot(compare_silk, aes(x = exp_count, y = trt_cumul_gross, 
-                                        color = trt, group = trt)) +
+                                      color = trt, group = trt)) +
   geom_line(aes(group=trt)) +
   geom_vline(xintercept = max_p1) +
   geom_hline(yintercept = 0) +
