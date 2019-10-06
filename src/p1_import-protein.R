@@ -12,29 +12,35 @@ protein_raw[which(protein_raw$sampleID == 'F2 S20'),]$sampleID <- 'F2 S20 PR'
 
 
 protein_data  <-  protein_raw %>% 
-  separate(sampleID, c("feeding", "ghop_fate_ID", "prey_remains"))
+  separate(sampleID, c("feeding", "ghop_fate_ID", "prey_remains")) %>% 
+  mutate(ghop_fate = if_else(substr(ghop_fate_ID, 1, 1)=='G', 'calib', 'spider remains')) %>% 
+  select(-vial_num)
 
-    mutate(splitID = str_split(sampleID, " ")) %>% 
-  unnest(cols = c(splitID))
+protein_calib <- protein_data %>% 
+  filter(ghop_fate == 'calib')
+hist(protein_calib$lowry_protein_percent)
+hist(protein_calib$bradford_protein_percent)
 
-  
+protein_remains <- protein_data %>% 
+  filter(ghop_fate == 'spider remains')
+hist(protein_remains$lowry_protein_percent)
+hist(protein_remains$bradford_protein_percent)
 
-
-splitID <- str_split(protein_raw$sampleID, " ")
-
-
-# protein_raw %>% 
-#   tidyr::separate(sampleID, 
-#                   sep = seq_len(max(nchar(.$sampleID)) - 1),
-#                   into = paste0('group', seq_len(max(nchar(.$sampleID)))))
-
-
-# foo <- data.frame(do.call('rbind', strsplit(as.character(protein_raw$sampleID),' ',fixed=TRUE)))
-
-
-# splitID <- separate(protein_raw$sampleID, "feeding", "ghop_fate_ID", "remains")
+protein_summary <- protein_data %>% 
+  split(.$ghop_fate) %>% 
+  map(summary)
 
 
+# protein_data %>% 
+#   group_by(ghop_fate) %>%
+#   # mutate(count = n()) %>% 
+#   summarise(
+#     mean = mean(lowry_protein_percent, na.rm = TRUE),
+#     sd = sd(lowry_protein_percent, na.rm = TRUE),
+#     median = median(lowry_protein_percent, na.rm = TRUE),
+#     IQR = IQR(lowry_protein_percent, na.rm = TRUE)
+#     )
 
-protein_data <- protein_raw %>% 
-  mutate(feeding = splitID[,1]),
+# kruskal.test(by_tube_total_cumul ~ trt, data = to_stat)
+# pairwise.wilcox.test(to_stat$by_tube_total_cumul, to_stat$trt,
+                     # p.adjust.method = "BH")
