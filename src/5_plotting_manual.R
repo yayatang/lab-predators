@@ -24,17 +24,29 @@ plot_pred_all <- ggplot(compare_pred, aes(x = exp_count, y = trt_cumul_gross,
   geom_line(aes(group=trt)) +
   geom_vline(xintercept = max_p1) +
   geom_hline(yintercept = 0) +
-  geom_line(size = 0.5) +
-  geom_point(size = 0.7) +
+  geom_line(size = 0.7) +
   geom_errorbar(aes(ymin = trt_cumul_gross - trt_cumul_se,
                     ymax = trt_cumul_gross + trt_cumul_se,
-                    width = 0.3)) +
-    guides(fill = guide_legend(title=NULL)) +
-  labs(title = 'cumul gross CO2, ghop adjusted')
+                    width = 0.5)) +
+  xlab('Experimental days lapsed') +
+  ylab('Cumulative C-CO2') + 
+  # scale_fill_manual(values = c("#d8b365", "#f5f5f5", "#5ab4ac")) +
+  # scale_fill_manual(name='Treatment',
+  #                   labels = c('Mantid waste', 'Spider waste')) +
+  #                   # values = pred_colors) + 
+  guides(fill = guide_legend(title=NULL)) +
+  ggtitle('Comparing prey nutrient by fate, input adjusted') +
+  theme_bw() +
+  theme(panel.border = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        axis.line = element_line(colour = "black"))
 
-p1 <- ggplotly(plot_pred_all)
+plot_pred_all
+# p1 <- ggplotly(plot_pred_all)
+# p1
 ggsave(paste0('results/5.1_compare_predators.png'), width=5, height=4, dpi=1000)
-p1
+
 # barplot(compare_pred$trt_cumul_gross, data = compare_pred)
 
 #==============================================================
@@ -43,7 +55,7 @@ trts_amend_adj <- readRDS('results/4_trts_to_plot_adj_amend.rds')%>% #adjusted v
   ungroup() %>% 
   unique()
 # trts_amend_adj <- readRDS('results/4_trts_to_plot_adj_poop.rds')%>% #adjusted vals
-  # ungroup()
+# ungroup()
 
 # including cumulative values per phase
 # trts_amend_adj <- readRDS('results/4_tubes_by-phase.rds')
@@ -61,14 +73,14 @@ plot_poop_all <- ggplot(compare_poop, aes(x = exp_count, y = trt_cumul_gross,
   geom_line(aes(group=trt)) +
   geom_vline(xintercept = max_p1) +
   geom_hline(yintercept = 0) +
-  geom_line(size = 0.5) +
-  geom_point(size = 0.7) +
+  geom_line(size = 0.7) +
+  # geom_point(size = 1.1) +
   geom_errorbar(aes(ymin = trt_cumul_gross - trt_cumul_se,
                     ymax = trt_cumul_gross + trt_cumul_se,
-                    width = 0.3)) +
+                    width = 0.5)) +
   xlab('Experimental days lapsed') +
   ylab('Cumulative C-CO2') + 
-  scale_fill_manual(values = c("#d8b365", "#f5f5f5", "#5ab4ac")) +
+  # scale_fill_manual(values = c("#d8b365", "#f5f5f5", "#5ab4ac")) +
   # scale_fill_manual(name='Treatment',
   #                   labels = c('Mantid waste', 'Spider waste')) +
   #                   # values = pred_colors) + 
@@ -79,9 +91,10 @@ plot_poop_all <- ggplot(compare_poop, aes(x = exp_count, y = trt_cumul_gross,
         panel.grid.minor = element_blank(), 
         axis.line = element_line(colour = "black"))
 
-p2 <- ggplotly(plot_poop_all)
-p2
-ggsave(paste0('results/5.2_compare_predators_poop.png'), width=8, height=6, dpi=1000)
+plot_poop_all
+# p2 <- ggplotly(plot_poop_all)
+# p2
+ggsave(paste0('results/5.2_compare_predators_poop.png'), width=5, height=4, dpi=1000)
 
 #==============================================================
 # 3. compare cumulative predator poops, adjusted to ghop mass
@@ -161,7 +174,14 @@ ggsave(paste0('results/5.4b_compare_mantid.png'), width=5, height=4, dpi=1000)
 #==============================================================
 # 5. comparing the effect of silk (widow wrapped vs widow remains)
 compare_silk <- trts_amend_adj %>%  #
-  filter(trt == 'WW' | trt == 'WR')
+  filter(trt == 'WW' | trt == 'WR') %>% 
+  select(-tube_num, -origin_dry) %>% 
+  unique()
+
+compare_silk[compare_silk == "NaN"] <- NA
+compare_silk$trt_cumul_gross <-  na.approx(compare_silk$trt_cumul_gross)
+
+
 # silk_summed <- compare_silk %>% 
 #   filter(trt != 'WA') %>% 
 #   group_by(exp_count) %>% 
@@ -172,15 +192,26 @@ plot_silk <- ggplot(compare_silk, aes(x = exp_count, y = trt_cumul_gross,
   geom_line(aes(group=trt)) +
   geom_vline(xintercept = max_p1) +
   geom_hline(yintercept = 0) +
-  geom_line(size = 0.5) +
-  geom_point(size = 0.7) +
+  geom_line(size = 0.7) +
+  # geom_point(size = 1.1) +
   geom_errorbar(aes(ymin = trt_cumul_gross - trt_cumul_se,
                     ymax = trt_cumul_gross + trt_cumul_se,
-                    width = 0.3)) +
-  guides(fill = guide_legend(title=NULL)) +
-  labs(title = 'Cumulative gross CO2, ghop adjusted')
+                    width = 0.5)) +
+  xlab('Experimental days lapsed') +
+  ylab('Cumulative C-CO2') + 
+  # scale_fill_manual(values = c("#d8b365", "#f5f5f5", "#5ab4ac")) +
+  # scale_fill_manual(name='Treatment',
+  #                   labels = c('Mantid waste', 'Spider waste')) +
+  #                   # values = pred_colors) + 
+  ggtitle('Cumulative gross CO2, ghop adjusted') +
+  theme_bw() + 
+  theme(panel.border = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        axis.line = element_line(colour = "black"))
 
-p5 <- ggplotly(plot_silk)
+# p5 <- ggplotly(plot_silk)
+plot_silk
 ggsave(paste0('results/5.5_compare_silk.png'), width=5, height=4, dpi=1000)
 
 #=========
