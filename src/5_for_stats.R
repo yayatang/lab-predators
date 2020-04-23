@@ -8,8 +8,8 @@ end_tubes <- for_stats %>%
          trt=='MA'|trt=='G'|trt=='WA')
 
 kruskal.test(by_tube_total_cumul ~ trt, data = end_tubes) 
-dunnTest(by_tube_total_cumul ~ trt, data = end_tubes, method="bh")
-
+# dunnTest(by_tube_total_cumul ~ trt, data = end_tubes, method="bh")
+dunn.test(by_tube_total_cumul ~ trt, data = end_tubes, method="bh")
 # summ_barplot <- summarise(end_tubes, by=trts)
 
 barplot(end_tubes$by_tube_total_cumul, data = end_tubes)

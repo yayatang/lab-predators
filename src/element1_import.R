@@ -1,3 +1,6 @@
+# bar charts for ESA august 2019
+# comparing waste + remains between predators
+
 library(tidyverse)
 library(readxl)
 source(here::here('src/yaya_fxns.R'))
@@ -33,6 +36,9 @@ pp_summ[pp_summ == 'NA calib'] <- 'ghop carcass'
 pp_summ[pp_summ == 'mantid feces'] <- 'mantid waste'
 pp_summ[pp_summ == 'spider feces'] <- 'spider waste'
 
+
+pred_prod <- c('Feces' = '#6E9B34','Prey remains' = '#AA5739')
+
 pp <- ggplot(data = pp_summ, aes(pred_prod, mean_CN)) +
   geom_bar(stat = 'identity',  position = position_dodge()) +
   # geom_errorbar(aes(ymin = mean_CN - pred_se, ymax = avg_mass_mg + pred_se),
@@ -40,15 +46,19 @@ pp <- ggplot(data = pp_summ, aes(pred_prod, mean_CN)) +
   # position = position_dodge(0.9)) +
   xlab('Predator product') +
   ylab('Average C:N') + 
-  # scale_fill_manual(name='Predator product',
-  # labels = c('Feces', 'Prey remains'),
-  # values = pred_prod) + 
+  scale_fill_manual(name='Predator product',
+                    labels = c('Feces', 'Prey remains'),
+                    values = pred_prod) +
   ggtitle('C to N of predator products') +  # ggtitle('  ') + 
   theme_bw()
+pp
 
 #====================
+# generate bar chart for comparing predator poop differences
+
 pp_poop <- pp_mysamp %>% 
-  filter(sample_type=='feces') %>% 
+  # filter(sample_type=='remains' | sample_type == 'calib') %>%
+  filter(sample_type=='feces') %>%
   group_by(predator_type, sample_type) %>% 
   summarize_at(vars(CN_ratio), list(~mean(., na.rm = TRUE), ~se(.))) %>%
   mutate(mean_CN = mean,
@@ -62,10 +72,21 @@ pp_poop[pp_poop == 'NA calib'] <- 'ghop carcass'
 pp_poop[pp_poop == 'mantid feces'] <- 'mantid waste'
 pp_poop[pp_poop == 'spider feces'] <- 'spider waste'
 
-pp_poop$pred_prod <- factor(c('mantid waste','spider waste'), 
-                            levels = c('spider waste', 'mantid waste'))
 
-poop_only <- ggplot(data = pp_poop, aes(pred_prod, mean_CN)) +
+pp_poop$pred_prod <- factor(c('mantid waste','spider waste'),
+                            levels = c('spider waste', 'mantid waste'))
+# pp_poop$pred_prod <- factor(c('ghop carcass', 'mantid remains','spider remains'),
+#                             levels = c('ghop carcass', 'spider remains', 'mantid remains'))
+
+# pp_summ$pred_prod <- factor(pp_summ$pred_prod, levels = c('ghop carcass',
+#                                                           'spider remains',
+#                                                           'mantid remains',
+#                                                           'spider waste',
+#                                                           'mantid waste'))
+pp_poop
+
+w4 <- unique(pp_poop$pred_prod)
+poop_only <- ggplot(data = pp_poop, aes(pred_prod, mean_CN, fill=w4)) +
   geom_bar(stat = 'identity',  position = position_dodge(), width = 0.7) +
   geom_errorbar(aes(ymin = mean_CN - se_CN, ymax = mean_CN + se_CN),
                 width = 0.15,
@@ -78,7 +99,8 @@ poop_only <- ggplot(data = pp_poop, aes(pred_prod, mean_CN)) +
   theme(panel.border = element_blank(),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(), 
-        axis.line = element_line(colour = "black"))
+        axis.line = element_line(colour = "black"),
+        legend.position = "none")
 
 
 poop_only

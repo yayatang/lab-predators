@@ -1,9 +1,10 @@
-# for generating bar charts for poster
+# for generating bar charts for poster in march 2019 (huji faculty)
 
 library(readr)
 library(dplyr)
 library(here)
 library(ggplot2)
+source(here::here('src/yaya_fxns.r'))
 
 plot_bar <- read_csv(here::here('data/feedings/4_summ_by-product.csv')) %>% 
   rename(pred_se = std_err)
@@ -22,13 +23,12 @@ b <- ggplot(data = plot_bar, aes(predator, avg_mass_mg, fill=by.product)) +
                     labels = c('Predator waste', 'Prey remains'),
                     values = prods) + 
   ggtitle('Foraging by-products after predator consumption') +
-  # ggtitle('  ') + 
   theme_bw() + 
   theme(panel.border = element_blank(),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(), 
         axis.line = element_line(colour = "black"))
-
+b
 ggsave(here::here('results/bar_by.products.png'), width=5, height = 4, dpi = 1000)
 
 #=================
@@ -41,6 +41,7 @@ end_tubes <- end_raw %>%
   mutate(mean_end = mean, 
          se_end = se)
 
+# kw = kruskal wallis
 kw <- ggplot(data = end_tubes, aes(trt, mean_end, fill=trt)) + 
   geom_bar(stat = 'identity',  position = position_dodge()) +
   geom_errorbar(aes(ymin = mean_end - se_end, ymax = mean_end + se_end),
