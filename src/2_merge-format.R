@@ -22,7 +22,7 @@ irga <- readRDS(here::here('results/1_irga.rds'))
 #==========================================================
 data_tubes <- tubes %>% 
   rename(tubeID = sampleID) %>% 
-  unnest()
+  unnest_legacy()
 all_tubeID <- unique(data_tubes[,c('tube_num', 'tubeID')])
 
 data_prey <- prey_g %>% 
@@ -179,4 +179,5 @@ irga_input <- left_join(data_irga, i_inputs_netto)
 amend_diff <- irga_input$trt_added_mass - irga_input$summed_inputs
 
 #----
-saveRDS(irga_input, here::here('results/2_irga.rds'))
+## export real IRGA data to RDS
+# saveRDS(irga_input, here::here('results/2_irga.rds'))

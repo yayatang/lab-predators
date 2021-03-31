@@ -210,7 +210,7 @@ for (i in seq_along(length(dynamic_data))){
     # facet_grid(~phase, scales="free") +
     geom_vline(xintercept=max_p1, color="grey", size = 0.3) +
     geom_hline(yintercept=0) +
-    geom_line(size=0.5, aes(linetype = animal_group)) +
+    geom_line(size=0.5) + #, aes(linetype = animal_group)) +
     # geom_point(size=1) +
     # geom_errorbar(aes(ymin = graph_yvar - graph_se,
     #     ymax = graph_yvar + graph_se),
@@ -231,7 +231,10 @@ for (i in seq_along(length(dynamic_data))){
   ggsave(paste0('results/2019.08.04_',i,'_by_', dynamic_data$graph_group[i], '_adjusted.png'), width=5, height=4, dpi=1000)
   
   ggplotly(any_plot)
-  htmlwidgets::saveWidget(any_plot, paste0('results/2019.08.04_plotly_',dynamic_data$graph_group[i]))
+  htmlwidgets::saveWidget(any_plot, paste0(here::here('results/'),
+                                           today(), 
+                                           'plotly_',
+                                           dynamic_data$graph_group[i]))
   
   
   #   all_plots[[i]] <- as_widget(ggplotly(any_plot))
@@ -239,4 +242,3 @@ for (i in seq_along(length(dynamic_data))){
 }
 
 # invoke(all_plots, ggplotly)
-# 

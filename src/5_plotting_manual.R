@@ -4,14 +4,19 @@
 library(tidyverse)
 library(plotly)
 library(zoo)
+
 source(here::here('src/yaya_fxns.R'))
 
 # data from the first plot used to get universal trt + max_p1 vars
 trts_ghop_adj <- readRDS('results/4_trts_to_plot_adj.rds') %>% #adjusted vals
   ungroup()
+# not sure this is a valid file....
+tubes_ghop_adj <- readRDS('results/4_tubes_to_plot_adj.rds') %>% 
+  ungroup()
 
 trts <- unique(trts_ghop_adj$trt)
 max_p1 <- get_phase1_max(trts_ghop_adj)
+max_p2 <- max(trts_ghop_adj$phase_count)
 
 #==============================================================
 # 1. comparing both predators products to each other
@@ -30,25 +35,14 @@ plot_pred_all <- ggplot(compare_pred, aes(x = exp_count, y = trt_cumul_gross,
                     width = 0.5)) +
   xlab('Experimental days lapsed') +
   ylab('Cumulative C-CO2') + 
-  # scale_fill_manual(values = c("#d8b365", "#f5f5f5", "#5ab4ac")) +
-  # scale_fill_manual(name='Treatment',
-  #                   labels = c('Mantid waste', 'Spider waste')) +
-  #                   # values = pred_colors) + 
   guides(fill = guide_legend(title=NULL)) +
   ggtitle('Comparing prey nutrient by fate, input adjusted') +
-  theme_bw() +
-  theme(panel.border = element_blank(),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(), 
-        axis.line = element_line(colour = "black"))
+  theme_bw()
 
 plot_pred_all
 # p1 <- ggplotly(plot_pred_all)
 # p1
-ggsave(paste0('results/5.1_compare_predators.png'), width=5, height=4, dpi=1000)
-
-# barplot(compare_pred$trt_cumul_gross, data = compare_pred)
-
+# ggsave(paste0('results/5.1_compare_predators.png'), width=5, height=4, dpi=1000)
 #==============================================================
 # 2. compare cumulative predator poops, adjusted to poop/amendment mass
 trts_amend_adj <- readRDS('results/4_trts_to_plot_adj_amend.rds')%>% #adjusted vals
@@ -94,7 +88,7 @@ plot_poop_all <- ggplot(compare_poop, aes(x = exp_count, y = trt_cumul_gross,
 plot_poop_all
 # p2 <- ggplotly(plot_poop_all)
 # p2
-ggsave(paste0('results/5.2_compare_predators_poop.png'), width=5, height=4, dpi=1000)
+# ggsave(paste0('results/5.2_compare_predators_poop.png'), width=5, height=4, dpi=1000)
 
 #==============================================================
 # 3. compare cumulative predator poops, adjusted to ghop mass
@@ -116,7 +110,7 @@ plot_poop_origin <- ggplot(compare_poop_origin, aes(x = exp_count, y = trt_cumul
   labs(title = 'Cumulative gross CO2, ghop adjusted')
 
 p3 <- ggplotly(plot_poop_origin)
-ggsave(paste0('results/5.3_compare_poop.png'), width=5, height=4, dpi=1000)
+# ggsave(paste0('results/5.3_compare_poop.png'), width=5, height=4, dpi=1000)
 
 #==============================================================
 # 4. predator ALL vs predator products summed
@@ -143,7 +137,11 @@ plot_widow <- ggplot(compare_widow, aes(x = exp_count, y = trt_cumul_gross,
   labs(title = 'Cumulative gross CO2, ghop adjusted')
 
 p4a <- ggplotly(plot_widow)
-ggsave(paste0('results/5.4a_compare_widow.png'), width=5, height=4, dpi=1000)
+p4a
+# ggsave(paste0('results/5.4a_compare_widow.png'), width=5, height=4, dpi=1000)
+
+compare_widow_end <- filter(compare_widow, phase_count == max_p2) %>% 
+  distinct)
 
 #=====================
 # graph B: mantids
@@ -168,7 +166,10 @@ plot_mantid <- ggplot(compare_mantid, aes(x = exp_count, y = trt_cumul_gross,
   labs(title = 'Cumulative gross CO2, ghop adjusted')
 
 p4b <- ggplotly(plot_mantid)
-ggsave(paste0('results/5.4b_compare_mantid.png'), width=5, height=4, dpi=1000)
+p4b
+
+
+# ggsave(paste0('results/5.4b_compare_mantid.png'), width=5, height=4, dpi=1000)
 
 
 #==============================================================
@@ -212,13 +213,13 @@ plot_silk <- ggplot(compare_silk, aes(x = exp_count, y = trt_cumul_gross,
 
 # p5 <- ggplotly(plot_silk)
 plot_silk
-ggsave(paste0('results/5.5_compare_silk.png'), width=5, height=4, dpi=1000)
-
-#=========
-# save all plots
-htmlwidgets::saveWidget(p1, here::here('results/5.1_compare_pred_all.html'), selfcontained=TRUE)
-htmlwidgets::saveWidget(p2, here::here('results/5.2_compare_pred_poop.html'), selfcontained=TRUE)
-htmlwidgets::saveWidget(p3, here::here('results/5.3_compare_poop_origin.adj.html'), selfcontained=TRUE)
-htmlwidgets::saveWidget(p4a, here::here('results/5.4a_compare_widow.html'), selfcontained=TRUE)
-htmlwidgets::saveWidget(p4b, here::here('results/5.4b_compare_mantid.html'), selfcontained=TRUE)
-htmlwidgets::saveWidget(p5, here::here('results/5.5_compare_silk.html'), selfcontained=TRUE)
+# ggsave(paste0('results/5.5_compare_silk.png'), width=5, height=4, dpi=1000)
+# 
+# #=========
+# # save all plots
+# htmlwidgets::saveWidget(p1, here::here('results/5.1_compare_pred_all.html'), selfcontained=TRUE)
+# htmlwidgets::saveWidget(p2, here::here('results/5.2_compare_pred_poop.html'), selfcontained=TRUE)
+# htmlwidgets::saveWidget(p3, here::here('results/5.3_compare_poop_origin.adj.html'), selfcontained=TRUE)
+# htmlwidgets::saveWidget(p4a, here::here('results/5.4a_compare_widow.html'), selfcontained=TRUE)
+# htmlwidgets::saveWidget(p4b, here::here('results/5.4b_compare_mantid.html'), selfcontained=TRUE)
+# htmlwidgets::saveWidget(p5, here::here('results/5.5_compare_silk.html'), selfcontained=TRUE)

@@ -104,4 +104,4 @@ poop_only <- ggplot(data = pp_poop, aes(pred_prod, mean_CN, fill=w4)) +
 
 
 poop_only
-ggsave(paste0('results/e1_compare_waste.png'), width=5, height=4, dpi=1000)
+# ggsave(paste0('results/e1_compare_waste.png'), width=5, height=4, dpi=1000)

@@ -29,7 +29,7 @@ b <- ggplot(data = plot_bar, aes(predator, avg_mass_mg, fill=by.product)) +
         panel.grid.minor = element_blank(), 
         axis.line = element_line(colour = "black"))
 b
-ggsave(here::here('results/bar_by.products.png'), width=5, height = 4, dpi = 1000)
+# ggsave(here::here('results/bar_by.products.png'), width=5, height = 4, dpi = 1000)
 
 #=================
 
@@ -57,4 +57,4 @@ kw <- ggplot(data = end_tubes, aes(trt, mean_end, fill=trt)) +
         axis.line = element_line(colour = "black"))
 
 kw
-ggsave(here::here('results/bar_by.products.png'), width=5, height = 4, dpi = 1000)
+# ggsave(here::here('results/bar_by.products.png'), width=5, height = 4, dpi = 1000)

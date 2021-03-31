@@ -43,8 +43,8 @@ by_tube_phase <- graph_data %>%
          cumul_phase_diff = order_by(exp_count, cumsum(infer_tube_diff_daily))) %>% 
   ungroup()
 
-saveRDS(by_tube, here::here('results/4_tubes_to_plot.rds'))
-saveRDS(by_tube_phase, here::here('results/4_tubes_by-phase.rds'))
+# saveRDS(by_tube, here::here('results/4_tubes_to_plot.rds'))
+# saveRDS(by_tube_phase, here::here('results/4_tubes_by-phase.rds'))
 
 #------------------------------------
 
@@ -129,7 +129,7 @@ trt_summ[trt_summ$real_data == FALSE,]$trt_cumul_se <- NA
 
 trt_summ <- add_phase(trt_summ)
 
-saveRDS(trt_summ, here::here('results/4_trts_to_plot.rds'))
+# saveRDS(trt_summ, here::here('results/4_trts_to_plot.rds'))
 
 #======================
 # for adjusting predator treatments to ghop input (thus no NET values)
@@ -140,6 +140,8 @@ by_tube_a <- by_tube %>%
   left_join(tubes_meta, by='tube_num') %>%
   mutate(daily_gross_a = infer_tube_total_daily/origin_dry,
          cumul_gross_a = cumul_gross/origin_dry)
+
+# saveRDS(by_tube_a, here::here('results/4_tubes_to_plot_adj.rds'))
 
 by_trt_daily_a <- by_tube_a %>% 
   group_by(trt, exp_count) %>% 
@@ -169,24 +171,27 @@ trt_summ_a[trt_summ_a$real_data == FALSE,]$trt_cumul_se <- NA
 
 trt_summ_a <- add_phase(trt_summ_a)
 
-saveRDS(trt_summ_a, here::here('results/4_trts_to_plot_adj.rds'))
+# saveRDS(trt_summ_a, here::here('results/4_trts_to_plot_adj.rds'))
 
 #======================
 # for adjusting predator poop to poop mass (amendment mass)
 by_tube_p <- by_tube %>% 
   filter(trt != 'C') %>% 
   select(-trt, -ghop_fate, -origin_dry, -real_data) %>% 
-  left_join(tubes_meta, by='tube_num') %>%
-  mutate(daily_gross_p = if(is.na(trt_added_mass)) NA else infer_tube_total_daily/trt_added_mass,
+  left_join(tubes_meta, by='tube_num')%>%
+  mutate(daily_gross_p = ifelse(is.na(trt_added_mass), NA, 
+                                infer_tube_total_daily/trt_added_mass),
          cumul_gross_p = cumul_gross/trt_added_mass)
 
+####FIX MEE####
 by_trt_daily_p <- by_tube_p %>% 
   group_by(trt, exp_count) %>% 
-  summarise_at(vars(daily_gross_p), list(~mean(., na.rm=TRUE), ~se(.))) %>% 
-  
-  summarise_each(list(~mean(., na.rm=TRUE), ~se), daily_gross_p) %>% 
-  rename(trt_daily_gross = mean,
-         trt_daily_se = se) %>% 
+  summarise(across(daily_gross_p), list(mean, se))
+####FIX MEE####
+
+# (., na.rm=TRUE), ~se), daily_gross_p) %>% 
+rename(trt_daily_gross = mean,
+       trt_daily_se = se) %>% 
   left_join(c_trt_summarized)
 
 by_trt_cumul_p <- by_tube_p %>% 
@@ -210,4 +215,4 @@ trt_summ_p[trt_summ_p$real_data == FALSE,]$trt_cumul_se <- NA
 
 trt_summ_p <- add_phase(trt_summ_p)
 
-saveRDS(trt_summ_p, here::here('results/4_trts_to_plot_adj_amend.rds'))
+# saveRDS(trt_summ_p, here::here('results/4_trts_to_plot_adj_amend.rds'))
