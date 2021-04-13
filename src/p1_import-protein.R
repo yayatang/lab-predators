@@ -1,5 +1,8 @@
+# this script appears to process protein data from Shawn
+
 library(readxl)
 library(tidyverse)
+library(ggpubr)
 
 protein_raw <- read_xlsx(here::here('data/protein analysis/Gideons protein summary.xlsx'))
 
