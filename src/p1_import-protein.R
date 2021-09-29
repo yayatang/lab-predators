@@ -3,6 +3,9 @@
 library(readxl)
 library(tidyverse)
 library(ggpubr)
+library(janitor)
+source("C:/Users/yaya/Dropbox/1 Ecologist/2 EXPERIMENTS/yaya_r_themes.R")
+
 
 protein_raw <- read_xlsx(here::here('data/protein analysis/Gideons protein summary.xlsx'))
 
@@ -12,75 +15,73 @@ colnames(protein_raw) <- c('vial_num', 'sampleID', 'mg_subsample',
 protein_raw[which(protein_raw$sampleID == 'F2 S20'),]$sampleID <- 'F2 S20 PR'
 
 
-protein_data  <-  protein_raw %>% 
-  separate(sampleID, c("feeding", "ghop_fate_ID", "prey_remains")) %>% 
-  mutate(ghop_fate = if_else(substr(ghop_fate_ID, 1, 1)=='G', 'calib', 'spider remains')) %>% 
+protein_data <- protein_raw %>% 
+  clean_names() %>% 
+  select(sample_id, bradford_protein_igg, bradford_protein_percent) %>% 
+  separate(sample_id, c("feeding", "ghop_fate_id", "pred_prod")) %>% 
+  mutate(ghop_fate = if_else(substr(ghop_fate_id, 1, 1)=='G', 'calib', 'spider')) %>% 
   group_by(ghop_fate) %>% 
   mutate(bradford_se = se(bradford_protein_percent),
          bradford_avg = mean(bradford_protein_percent)) %>% 
-  ungroup() %>% 
-  select(-vial_num)
+  ungroup()
+protein_data[which(is.na(protein_data$pred_prod)),]$pred_prod <- 'carcass'
+protein_data[which(protein_data$pred_prod == 'PR'),]$pred_prod <- 'remains'
 
-protein_calib <- protein_data %>% 
-  filter(ghop_fate == 'calib')
-hist(protein_calib$lowry_protein_percent)
-hist(protein_calib$bradford_protein_percent)
 
-protein_remains <- protein_data %>% 
-  filter(ghop_fate == 'spider remains')
-hist(protein_remains$lowry_protein_percent)
-hist(protein_remains$bradford_protein_percent)
 
+(protein_calib <- protein_data %>% 
+    ggplot(aes(pred_prod,
+               bradford_protein_percent,
+               fill = pred_prod)) + 
+    geom_boxplot()
+)
 #--------------
 # produce bar chart comparing grasshopper carcass protein to spider remains
 
-prod_colors <- c('calib' = '#277552', 'spider remains' = '#913059')
+# prod_colors <- c('calib' = '#277552', 'spider remains' = '#913059')
+prod_colors <- viridis(4, option = "D")
 
-protein_summary <- protein_data %>% 
+
+protein_data %>% 
   group_by(ghop_fate) %>% 
-  summarize_at(vars(bradford_protein_percent, lowry_protein_percent), list(~mean(., na.rm = TRUE), ~se(.))) %>% 
-  rename(bradford_mean = bradford_protein_percent_mean,
-         lowry_mean = lowry_protein_percent_mean,
-         bradford_se = bradford_protein_percent_se,
-         lowry_se = lowry_protein_percent_se) %>% 
-  ungroup()
-
-bar_bradford <- ggplot(data = protein_summary, aes(ghop_fate, bradford_mean, 
-                                           fill=ghop_fate)) + 
+  summarize(mean_bradford_protein_percent = mean(bradford_protein_percent),
+            se_bradford_protein_percent = se(bradford_protein_percent)) %>% 
+  ungroup() %>% 
+  ggplot(aes(ghop_fate, 
+             mean_bradford_protein_percent, 
+             fill = ghop_fate)) + 
   geom_bar(stat = 'identity',  position = position_dodge()) +
-  geom_errorbar(aes(ymin = bradford_mean - bradford_se, 
-                    ymax = bradford_mean + bradford_se),
-                width = 0.15,
-                position = position_dodge(0.9)) +
-  xlab('Soil input type') +
-  ylab('Protein percentage') + 
-  scale_fill_manual(values = prod_colors) +
-                    # name='Input type',
-                    # labels = c('Grasshopper carcass', 'Spider prey remains')) + 
-  scale_x_discrete(labels = c('Grasshopper carcass', 'Spider prey remains')) +
-  ggtitle('Protein content for soil inputs') +
-  theme_bw() + 
-  theme(panel.border = element_blank(),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(), 
-        axis.line = element_line(colour = "black"),
-        plot.title = element_text(hjust=0.5),
-        legend.position = "none")
-
-bar_bradford
-ggsave(here::here('results/protein_barplots_bradford.png'), width=5, height = 4, dpi = 1000)
+  geom_errorbar(aes(ymin = mean_bradford_protein_percent - se_bradford_protein_percent, 
+                    ymax = mean_bradford_protein_percent + se_bradford_protein_percent),
+                width = 0.15) +
+  scale_fill_manual(values = c(viridis(4)[1], viridis(4)[3])) +
+  # name='Input type',
+  # labels = c('Grasshopper carcass', 'Spider prey remains')) + 
+  scale_x_discrete(name = 'Grasshopper\nfate',
+                   labels = c('Grasshopper\ncarcass', 'Spider\nprey remains')) +
+  labs(title = '\n Protein content',
+       x = 'Necromass type',
+       y = '% protein (Bradford)',
+       color = 'Treatment') +
+  theme_yaya() + 
+  theme(axis.title.x = element_blank(),
+        legend.position = 'none')
 
 
-#--------------
+my_ggsave(here::here('results/protein_barplots_bradford.png'), 4, 4)
+
+
+
+#-------------- are these old DFs?
 png(file=here::here('results/protein_boxplots_bradford.png'), width = 800, height = 700)
-geom_boxplot(protein_calib$bradford_protein_percent, protein_remains$bradford_protein_percent,
-        main = "Protein content",
-        at = c(1, 3),
-        names = c('Grasshopper carcass', 'Spider prey remains'),
-        xlab = "Sample type + protocol",
-        ylab = "Percent protein",
-        ylim = c(0, 55),
-        las = 0
+ggboxplot(protein_calib$bradford_protein_percent, protein_remains$bradford_protein_percent,
+          main = "Protein content",
+          at = c(1, 3),
+          names = c('Grasshopper carcass', 'Spider prey remains'),
+          xlab = "Sample type + protocol",
+          ylab = "Percent protein",
+          ylim = c(0, 55),
+          las = 0
 )
 dev.off()
 

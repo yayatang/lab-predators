@@ -145,4 +145,4 @@ data9_to_graph[which(is.na(data9_to_graph$se)),]$by_trt_daily_se <- NA
 data9_to_graph[which(data9_to_graph$ghop_fate=="ghop"),]$ghop_fate <- 'carcass'
 
 # write all data, including daily, gross, net, and cumulative values
-saveRDS(data9_to_graph, "results/3_data_to_graph.rds") # for saving factor levels
+# saveRDS(data9_to_graph, "results/3_data_to_graph.rds") # for saving factor levels

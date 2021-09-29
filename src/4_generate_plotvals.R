@@ -8,8 +8,11 @@ library(janitor)
 library(viridis)
 library(plotly)
 library(gridExtra)
+library(lme4)
 # remotes::install_github("coolbutuseless/ggpattern")
 source(here::here('src/yaya_fxns.R'))
+source("C:/Users/yaya/Dropbox/1 Ecologist/2 EXPERIMENTS/yaya_r_themes.R")
+
 
 #create my own theme for these plots
 theme_pp <- theme(axis.text.x = element_text(angle = 30, vjust = 1, hjust=1),
@@ -25,16 +28,18 @@ theme_dyn <- theme(axis.text.x = element_text(vjust = 1, hjust=0.5),
 bar_x_labels <- c('Grasshopper carcass',
                   'Mantid, All products', 
                   'Mantid, Prey remains', 
-                  'Mantid, Excreta + egesta',
+                  # 'Mantid, Excreta + egesta',
+                  'Mantid, Wastes', 
                   'Spider, All products', 
                   'Spider, Prey remains', 
-                  'Spider, Excreta + egesta', 
+                  # 'Spider, Excreta + egesta', 
+                  'Spider, Wastes', 
                   'Control, litter only')
 
 bar_x_labels_short <- c('Grasshopper', 
-                        'All', 'Remains', 'Excreta, egesta',
-                        'All', 'Remains', 'Excreta, egesta', 
-                        'Litter only')
+                        'All', 'Remains', 'Wastes', #'Excreta, egesta',
+                        'All', 'Remains', 'Wastes') #Excreta, egesta', 
+# 'Litter only')
 
 vir_8 <- viridis(8)
 vir_4 <- viridis(4)
@@ -125,20 +130,37 @@ sys_input_compare %>%
   geom_errorbar(aes( ymin = mean_origin_dry - se_origin_dry, 
                      ymax = mean_origin_dry + se_origin_dry,
                      width = 0.15)) +
-  # geom_jitter(data = sys_input_compare, aes(trt, origin_dry), width = 0.1)+
+  geom_jitter(data = sys_input_compare, aes(trt, origin_dry), width = 0.1)+
   # scale_fill_viridis(name = 'Grasshopper fate', discrete = TRUE) +
   scale_fill_manual(values = vir_4[1:3], name = 'Grasshopper fate') + 
-  labs(title = 'Mass of original grasshopper input to each predator system',
+  labs(title = '\nOriginal animal input size',
        x = 'Treatment',
        y = 'Dry mass (g)') +
   scale_x_discrete(labels=bar_x_labels_short) + 
-  theme_pp
+  theme_yaya() + 
+  theme(#plot.title = element_blank(),
+    axis.text.x = element_text(angle = 30, vjust = 1, hjust=1),
+    legend.position = 'none')
 
+
+my_ggsave(here::here('results/4_mass_system_input.png'), 5.5, 5.5)
+
+
+#---- Data analysis: stats for system inputs ----
 ## ANOVA for comparing the system ghop inputs per treatment
-sys_inputs_aov <- aov(origin_dry ~ trt, sys_input_compare)
-summary(sys_inputs_aov)
+aov_sys_inputs <- aov(origin_dry ~ trt, sys_input_compare)
+summary(aov_sys_inputs)
 ## non significant so inputs are equivalent
 
+## mixed effect models: first, random effect
+lm_sys_inputs <- glm(origin_dry ~ trt, data = sys_input_compare)
+summary(lm_sys_inputs)
+plot(lm_sys_inputs$residuals) ## ** not sure this passes 
+par(mfrow = c(2,2))
+plot(lm_sys_inputs)
+
+dev.off()
+plot(origin_dry ~ trt, sys_input_compare)
 
 #---- Figure: treatment inputs comparison -----
 ### now check that the treatment input is different
@@ -150,28 +172,51 @@ sys_input_compare %>%
   ggplot(aes(trt, mean_trt_added_mass, fill = ghop_fate)) +
   geom_col(position = 'dodge',
            color = 'black')+
-  geom_errorbar(aes( ymin = mean_trt_added_mass - se_trt_added_mass, 
-                     ymax = mean_trt_added_mass + se_trt_added_mass,
-                     width = 0.15)) +
+  geom_errorbar(aes(ymin = mean_trt_added_mass - se_trt_added_mass, 
+                    ymax = mean_trt_added_mass + se_trt_added_mass,
+                    width = 0.15)) +
   geom_jitter(data = sys_input_compare, aes(trt, trt_added_mass), width = 0.1)+
   scale_fill_manual(values = vir_4[1:3], name = 'Grasshopper fate') + 
-  labs(title = 'Mass of treatments added to microcosms',
+  labs(title = '\nAnimal necromass size added to microcosm',
        x = 'Treatment',
        y = 'Dry mass (g)') +
-  scale_x_discrete(labels = bar_x_labels_short) + 
-  theme_pp
+  scale_x_discrete(labels=bar_x_labels_short) + 
+  theme_yaya() + 
+  theme(#plot.title = element_blank(),
+    axis.text.x = element_text(angle = 30, vjust = 1, hjust=1))
+# legend.position = 'none')
 
 
-# making the ANOVA model
-tube_inputs_aov <- aov(trt_added_mass ~ trt, sys_input_compare) 
-summary(tube_inputs_aov)
+my_ggsave(here::here('results/4_mass_tube_input_jitter.png'), 7, 5.5)
+
+
+# rough and dirty: making the ANOVA model
+aov_tube_inputs <- aov(trt_added_mass ~ trt, sys_input_compare) 
+summary(aov_tube_inputs)
 
 par(mfrow=c(2,2))
-plot(tube_inputs_aov)
+plot(aov_tube_inputs)
 
-ggqqplot(resid(tube_inputs_aov))
-shapiro.test(resid(tube_inputs_aov)) ## nonnormal!  this is the dry mass of inputs. viraj says not too far from normal, probably ok.
+ggqqplot(resid(aov_tube_inputs))
+shapiro.test(resid(aov_tube_inputs)) ## this is the dry mass of inputs. viraj says not too far from normal, probably ok.
 
+## Data analysis: lm for tube inputs comparison by treatment-----
+lm_tube_inputs <- lm(trt_added_mass ~ trt, sys_input_compare)
+summary(lm_tube_inputs)
+plot(lm_tube_inputs)
+
+
+## Data analysis: lm for tube inputs comparison by treatment-----
+lm_product_inputs0 <- lm(trt_added_mass ~ ghop_fate + pred_prod, sys_input_compare)
+summary(lm_product_inputs0)
+
+lm_product_inputs <- lm(trt_added_mass ~ ghop_fate * pred_prod, sys_input_compare)
+summary(lm_product_inputs)
+plot(lm_product_inputs)
+alias(lm_product_inputs)
+
+
+anova(lm_product_inputs0, lm_product_inputs)
 
 #==== Pre-check: Daily dynamics overall ====
 
@@ -316,7 +361,9 @@ end_cumul_p1_trt <- cumul_data %>%
             se_cumul_c_p = se(cumul_c_gross_phase),
             ghop_fate = first(ghop_fate)) %>% 
   # View()
-  ggplot(aes(x = trt, y = mean_cumul_c_p, fill = ghop_fate)) +
+  ggplot(aes(x = trt, 
+             y = mean_cumul_c_p, 
+             fill = ghop_fate)) +
   geom_col(position = 'dodge',
            color = 'black')+
   geom_errorbar(aes( ymin = mean_cumul_c_p - se_cumul_c_p, 
@@ -501,32 +548,36 @@ dyn_daily_p2_scl_trt
 
 ##---- Figure: SCALED end of phase cumulative C ----
 ## the above data turned cumulative, and in bars
-graph_title <- 'Cumulative C mineralized by treatment, end of phase 1, \nscaled to input mass'
+graph_title <- '\nPhase 1 mineralization, scaled to input mass'
 
-end_cumul_p1_scl_trt <- cumul_data %>% 
-  group_by(trt, exp_count) %>% 
-  filter(phase == 1, 
-         trt != 'C') %>%  ## if C is filtered out, shorten the color scale
-  summarize(mean_trt_cumul_scale = mean(cumul_c_daily_scaled),
-            se_trt_cumul_scale = se(cumul_c_daily_scaled),
-            ghop_fate = first(ghop_fate)) %>% 
-  filter(exp_count == max(exp_count)) %>% 
-  ggplot(aes(x = trt, y = mean_trt_cumul_scale, fill = ghop_fate)) +
-  geom_col(position = 'dodge',
-           color = 'black')+
-  geom_errorbar(aes( ymin = mean_trt_cumul_scale - se_trt_cumul_scale, 
-                     ymax = mean_trt_cumul_scale + se_trt_cumul_scale,
-                     width = 0.15)) +
-  scale_fill_manual(values = vir_4[1:3], name = 'Grasshopper fate') + 
-  scale_x_discrete(labels = bar_x_labels[1:7]) +
-  labs(title = graph_title,
-       x = 'Treatment',
-       y = expression(C~mineralization~(mg~g~dry~wt~inputs^-1)),
-       # y = 'C mineralization (mg g dry wt inputs ^-1)',
-       color = 'Treatment') +
-  theme_pp
+(end_cumul_p1_scl_trt <- cumul_data %>% 
+    group_by(trt, exp_count) %>% 
+    filter(phase == 1, 
+           trt != 'C') %>%  ## if C is filtered out, shorten the color scale
+    summarize(mean_trt_cumul_scale = mean(cumul_c_daily_scaled),
+              se_trt_cumul_scale = se(cumul_c_daily_scaled),
+              ghop_fate = first(ghop_fate)) %>% 
+    filter(exp_count == max(exp_count)) %>% 
+    ggplot(aes(x = trt, y = mean_trt_cumul_scale, fill = ghop_fate)) +
+    geom_col(position = 'dodge',
+             color = 'black')+
+    geom_errorbar(aes( ymin = mean_trt_cumul_scale - se_trt_cumul_scale, 
+                       ymax = mean_trt_cumul_scale + se_trt_cumul_scale,
+                       width = 0.15)) +
+    scale_fill_manual(values = vir_4[1:3], name = 'Grasshopper fate',
+                      labels = c('Carcass', 'Mantid', 'Spider')) + 
+    scale_x_discrete(labels = bar_x_labels_short[1:7]) +
+    labs(title = graph_title,
+         x = 'Treatment',
+         y = expression(C~mineralization~(mg~g~dry~wt~inputs^-1)),
+         # y = 'C mineralization (mg g dry wt inputs ^-1)',
+         color = 'Treatment') +
+    theme_yaya()+
+    theme(axis.text.x = element_text(angle = 30, vjust = 1, hjust=1),
+          axis.title = element_text(hjust=0))
+)
 
-end_cumul_p1_scl_trt
+my_ggsave(here::here('results/4_scaled_input mass.png'), 5, 5)
 
 
 #==== Figure: End of exp cumulative data ====
@@ -572,12 +623,18 @@ cumul_data %>%
                      ymax = mean_cumul + se_cumul,
                      width = 0.15)) +
   geom_hline(yintercept = 21465.50) + # previously was 21303.60 before april 7, 2021
-  scale_fill_viridis(name = '', discrete = TRUE) +
-  labs(title = 'Gross C mineralized by each treatment, over entire experiment',
+  scale_fill_viridis(name = 'Grasshopper fate', discrete = TRUE,
+                     labels = c('Carcass', 'Mantid', 'Spider', 'Control')) +
+  labs(title = '', #Gross C mineralized by each treatment, over entire experiment',
        x = 'Treatment',
        y = 'C mineralization') +
-  scale_x_discrete(labels= bar_x_labels) + 
-  theme_pp
+  scale_x_discrete(labels= c(bar_x_labels_short, 'Litter-only')) + 
+  # theme_pp
+  theme_yaya() + 
+  theme(axis.text.x = element_text(angle = 30, vjust = 1, hjust=1))
+
+my_ggsave(here::here('results/4_phase_end_mineralization.png'), 7, 5)
+
 
 
 #----  Data analysis: linear models ----
@@ -592,11 +649,24 @@ summary(cumul_aov)
 ggqqplot(resid(cumul_aov))
 shapiro.test(resid(cumul_aov)) ## normal
 
+## posthoc
+TukeyHSD(cumul_aov)
+
+cumul_lm <- lm(cumul_c_gross ~ ghop_fate + pred_prod, filter(cumul_data, exp_count == max(exp_count)))
+summary(cumul_lm)
+
+cumul_lm_top <- lm(cumul_c_gross ~ trt, filter(cumul_data, exp_count == max(exp_count), trt == c('G','MA', 'WA')))
+summary(cumul_lm_top)
+
+
+
 
 ### ANOVA for top level: ghop vs predators vs control
 # this is to test whether there was a top level difference between ghop carcass, all mantid foraging by-products, and all spider foraging by-products
-aov_cumul_pred <- lm(cumul_c_gross ~ trt, filter(cumul_data, exp_count == max(exp_count) & group_compute==1))
+aov_cumul_pred <- aov(cumul_c_gross ~ trt, filter(cumul_data, exp_count == max(exp_count) & group_compute==1))
 summary(aov_cumul_pred) ## significant
+
+TukeyHSD(aov_cumul_pred)
 
 ggqqplot(resid(aov_cumul_pred))
 shapiro.test(resid(aov_cumul_pred)) ## normal
@@ -636,23 +706,28 @@ cumul_p1 <- cumul_data %>%
             group_compute = first(group_compute),
             phase = phase)
 
-g_cumul_p1 <- cumul_p1 %>% 
-  ggplot(aes(x = trt,
-             y = mean_cumul,
-             fill = ghop_fate)) +
-  geom_col(position = 'dodge',
-           color = 'black')+
-  geom_errorbar(aes( ymin = mean_cumul - se_cumul, 
-                     ymax = mean_cumul + se_cumul,
-                     width = 0.15)) +
-  # geom_hline(yintercept = 800.7792) + ### line for the Control treatments
-  scale_fill_viridis(name = 'Grasshopper fate', discrete = TRUE) +
-  labs(title = 'Gross C mineralized by each treatment, phase 1',
-       x = 'Treatment',
-       y = 'C mineralization') +
-  scale_x_discrete(labels = bar_x_labels_short) + 
-  theme_pp
-g_cumul_p1
+(g_cumul_p1 <- cumul_p1 %>% 
+    ggplot(aes(x = trt,
+               y = mean_cumul,
+               fill = ghop_fate)) +
+    geom_col(position = 'dodge',
+             color = 'black')+
+    geom_errorbar(aes( ymin = mean_cumul - se_cumul, 
+                       ymax = mean_cumul + se_cumul,
+                       width = 0.15)) +
+    # geom_hline(yintercept = 800.7792) + ### line for the Control treatments
+    scale_fill_viridis(name = 'Grasshopper fate', discrete = TRUE,
+                       labels = c('Carcass', 'Mantid', 'Spider', 'Control')) +
+    labs(title = '\nGross C mineralized by each treatment, phase 1',
+         x = 'Treatment',
+         y = 'C mineralization') +
+    scale_x_discrete(labels = bar_x_labels_short) + 
+    theme_yaya() + 
+    theme(axis.text.x = element_text(angle = 30, vjust = 1, hjust=1))
+)
+
+my_ggsave(here::here('results/4_phase_1_mineralization.png'), 7, 5)
+
 
 ### same data as above, but for phase 2 only
 ## summarized each tube's gross values at the END of the experiment
@@ -664,34 +739,45 @@ cumul_p2 <- cumul_data %>%
   arrange(tube_id, exp_count) %>% 
   mutate(cumul_c_phase2 = cumsum(infer_tube_total_daily)) %>% 
   ungroup() %>% 
-  group_by(trt) %>% 
-  filter(exp_count == max(exp_count)) %>% 
-  summarize(mean_cumul = mean(cumul_c_phase2),
-            se_cumul = se(cumul_c_phase2),
-            ghop_fate = first(ghop_fate),
-            pred_prod = first(pred_prod),
-            group_compute = first(group_compute),
-            phase = phase) %>% 
   unique()
 
 
-g_cumul_p2 <- cumul_p2 %>% 
-  ggplot(aes(x = trt,
-             y = mean_cumul,
-             fill = ghop_fate)) +
-  geom_col(position = 'dodge',
-           color = 'black')+
-  geom_errorbar(aes( ymin = mean_cumul - se_cumul, 
-                     ymax = mean_cumul + se_cumul,
-                     width = 0.15)) +
-  # geom_hline(yintercept = 20664.72) + ### line for the Control treatments
-  scale_fill_viridis(name = 'Grashopper fate', discrete = TRUE) +
-  labs(title = 'Gross C mineralized by each treatment, phase 2 only',
-       x = 'Treatment',
-       y = 'C mineralization') +
-  scale_x_discrete(labels = bar_x_labels_short) + 
-  theme_pp
-g_cumul_p2
+(g_cumul_p2 <- cumul_p2 %>% 
+    group_by(trt) %>% 
+    filter(exp_count == max(exp_count)) %>% 
+    summarize(mean_cumul = mean(cumul_c_phase2),
+              se_cumul = se(cumul_c_phase2),
+              ghop_fate = first(ghop_fate),
+              pred_prod = first(pred_prod),
+              group_compute = first(group_compute),
+              phase = phase) %>% 
+    ggplot(aes(x = trt,
+               y = mean_cumul,
+               fill = ghop_fate)) +
+    geom_col(position = 'dodge',
+             color = 'black')+
+    geom_errorbar(aes( ymin = mean_cumul - se_cumul, 
+                       ymax = mean_cumul + se_cumul,
+                       width = 0.15)) +
+    # geom_hline(yintercept = 20664.72) + ### line for the Control treatments
+    scale_fill_viridis(name = 'Grashopper fate', discrete = TRUE,
+                       labels = c('Carcass', 'Mantid', 'Spider', 'Control')) +
+    labs(title = '\nGross C mineralized by each treatment, phase 2 only',
+         x = 'Treatment',
+         y = 'C mineralization') +
+    scale_x_discrete(labels = bar_x_labels_short) + 
+    theme_yaya() + 
+    theme(axis.text.x = element_text(angle = 30, vjust = 1, hjust=1))
+)
+
+my_ggsave(here::here('results/4_phase_2_mineralization.png'), 7, 5)
+
+##### Data analysis: phase 2 end treatment differences #####
+lm_pp_phase2 <- lm(cumul_c_phase2 ~ trt,  cumul_p2)
+summary(lm_pp_phase2)
+lm_pp_phase2_null <-lm(cumul_c_phase2 ~ 1,  cumul_p2)
+
+anova(lm_pp_phase2, lm_pp_phase2_null)
 
 # C respiration in each phase, arranged in one window
 grid.arrange(g_cumul_p1, g_cumul_p2, nrow=1) ### THIS IS THE SAME AS AN EARLIER PLOT

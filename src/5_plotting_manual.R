@@ -141,7 +141,7 @@ p4a
 # ggsave(paste0('results/5.4a_compare_widow.png'), width=5, height=4, dpi=1000)
 
 compare_widow_end <- filter(compare_widow, phase_count == max_p2) %>% 
-  distinct)
+  distinct()
 
 #=====================
 # graph B: mantids

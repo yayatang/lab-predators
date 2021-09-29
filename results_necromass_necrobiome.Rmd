@@ -1,0 +1,1375 @@
+---
+title: "Chapter 2 Results"
+author: "Yaya"
+date: "10 August 2021"
+output: 
+  html_document: 
+    toc: true
+    toc_depth: 5
+    theme: united
+    highlight: tango
+    code_folding: hide
+---
+
+# Introduction
+
+TL;DR:
+These are results from the second chapter in my PhD using graphs and code copied from R scripts on 10 August 2021. 
+Sections with asterisks** mark the sections with statistics to be used for the paper.
+
+
+
+
+Here are the items included in this report:
+
+NECROMASS, quality and quantity as organized by experimental stage
+
+* prey products (both carcasses + fed to predators)
+  + quantity 
+    - measured wet mass from all, calculated dry mass from calibration locusts
+  + quality 
+    - analyzed from calibration locusts
+* predator products 
+  + quantity
+    - measured dry mass
+  + quality 
+    - analyzed from feeding assay products
+
+OR organized alternatively, by property:
+
+* quantity
+  + prey products (both carcasses + fed to predators)
+    - measured wet mass from all, calculated dry mass from calibration locusts
+  + predator products 
+    - directly measured dry mass prior to adding to soil microcosms
+
+* quality 
+  + prey products
+    - analyzed from calibration locusts
+  + predator products 
+    - analyzed from feeding assay products
+
+
+NECROBIOME
+Function in this experiment refers to rates of C the C mineralization.
+
+* Phase 1, animal necromass decomposition
+  + scaled to biomass
+    - remove mantid prey remains treatment (too high)
+    - spider wastes generated highest rates of mineralization, per gram
+  + unscaled function
+    - prey carcasses is highest, spider wastes is lowest
+
+* Phase 2, plant necromass decomposition
+  + all treatments with animal products had lower function 
+  + negative legacy
+    - TO DO: are there distinct differences between each?
+
+* Overall microcosm mineralization
+  + total mineralization rates were determined by decomposition in phase 1
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+
+# This is a new script for summarizing and visualizing the 
+# IRGA data for poopy predators
+
+#===== Setup: Libaries, import data ======
+library(tidyverse)
+library(ggpubr)
+library(janitor)
+library(viridis)
+library(plotly)
+library(gridExtra)
+library(lme4)
+library(dunn.test) ## for dunn.test
+library(FSA) ## for dunnTest
+library(readxl)
+library(ARTool)
+
+set.seed(20210926)
+
+# remotes::install_github("coolbutuseless/ggpattern")
+source(here::here('src/yaya_fxns.R'))
+source("C:/Users/yaya/Dropbox/1 Ecologist/2 EXPERIMENTS/yaya_r_themes.R")
+
+#create my own theme for these plots
+theme_pp <- theme(axis.text.x = element_text(angle = 30, vjust = 1, hjust=1),
+                  panel.background = element_rect(fill = "#f9f9f9",
+                                                  colour = "#f9f9f9"),
+                  panel.border = element_rect(color = "black", fill = NA))
+
+theme_dyn <- theme(axis.text.x = element_text(vjust = 1, hjust=0.5),
+                   panel.background = element_rect(fill = "#f9f9f9",
+                                                   colour = "#f9f9f9"),
+                   panel.border = element_rect(color = "black", fill = NA))
+
+bar_x_labels <- c('Grasshopper carcass',
+                  'Mantid, All products', 
+                  'Mantid, Prey remains', 
+                  # 'Mantid, Excreta + egesta',
+                  'Mantid, Wastes', 
+                  'Spider, All products', 
+                  'Spider, Prey remains', 
+                  # 'Spider, Excreta + egesta', 
+                  'Spider, Wastes', 
+                  'Control, litter only')
+
+bar_x_labels_short <- c('Grasshopper', 
+                        'All', 'Remains', 'Wastes', #'Excreta, egesta',
+                        'All', 'Remains', 'Wastes') #Excreta, egesta', 
+# 'Litter only')
+
+vir_8 <- viridis(8)
+vir_4 <- viridis(4)
+
+
+
+```
+
+# Necromass properties
+
+Import all IRGA data, amd summarize control data.
+
+TO DO: some day, check the unique table of `r c('trt', 'ghop_fate', 'pred_prod')` and figure out why there is a set of rows with NA. 
+
+```{r, message=FALSE, warning=FALSE}
+## import big table with all relevant data
+## this is all of the IRGA data, with columns for "origin dry mass" [locust mass] and "treatment added mass" [predator products] for each tube
+imported_data <- readRDS(here::here("results/3_data_to_graph.rds")) %>% 
+  ungroup() %>% 
+  clean_names() %>%
+  filter(trt != 'R',
+         # trt != 'C',
+         trt != 'WS', ## this it the treatment of only capture silk
+         trt != 'WR',
+         trt != 'WN') %>% ## this is for nest silk, and isn't relevant for this analysis 
+  select(tube_id, trt, rep, ghop_fate, phase, phase_count, exp_count, 
+         infer_tube_total_daily, origin_dry, trt_added_mass) %>% 
+  mutate(pred_prod = substr(trt, 2, 2)) %>% 
+  group_by(trt, rep) %>% 
+  arrange(exp_count)
+
+
+# add/fix grouping variables to partially cluster bar charts
+## group_compute = 1 includes treatments that are ALL predator foraging by-products
+## group_compute = 2 is everything else
+imported_data$trt <- fct_relevel(imported_data$trt, 'G', 'MA', 'MR', 'ME', 'WA', 'WW', 'WE', 'WR', 'WS', 'WN')
+
+imported_data$group_compute <- as.numeric(nrow(imported_data))
+imported_data[which(imported_data$pred_prod == '' | imported_data$pred_prod == 'A'),]$group_compute <- 1
+imported_data[which(imported_data$group_compute != 1),]$group_compute <- 2
+imported_data[which(imported_data$trt == 'C'),]$ghop_fate <- 'control'
+imported_data$ghop_fate <- fct_relevel(imported_data$ghop_fate, 'carcass', 'mantid', 'spider', 'control')
+
+imported_data[which(imported_data$pred_prod == 'W' | imported_data$pred_prod == 'R'),]$pred_prod <- 'remains'
+imported_data[which(imported_data$pred_prod == 'A'),]$pred_prod <- 'all'
+imported_data[which(imported_data$pred_prod == 'E'),]$pred_prod <- 'excreta'
+imported_data[which(imported_data$pred_prod == ''),]$pred_prod <- 'none'
+imported_data$pred_prod <- fct_relevel(as_factor(imported_data$pred_prod), 
+                                       'none', 'all', 'remains', 'excreta')
+
+########## Setup: Control data subset ########
+## This section of code is to subset the control tubes data and get the  
+# treatment average for each day.  This table will be added to the rest of the 
+# IRGA data
+
+# extract the control data, and summarize
+ctrl_data <- imported_data %>% 
+  filter(trt == 'C') %>% 
+  select(exp_count, trt, rep, infer_tube_total_daily) %>% 
+  group_by(exp_count) %>%
+  arrange(exp_count) %>% 
+  summarize(trt = first(trt),
+            ctrl_daily_mean = mean(infer_tube_total_daily),
+            ctrl_daily_se = se(infer_tube_total_daily)) %>% 
+  mutate(ctrl_cumul = cumsum(ctrl_daily_mean))
+```
+
+
+## Quantity: (a) prey inputs to predators, summary
+
+This is the summary table of the system inputs and again in graphical form. These analyses are basically to show that there is no difference between the groups of prey bodies between treatments.  
+(note, units are in mg)
+
+```{r}
+#### BEGIN DATA VISUALIZATION #####
+
+#---- Figure: Plots comparing the system input masses ----
+
+## check that the system inputs between the tubes aren't different
+sys_input_compare <- imported_data %>% 
+  select(trt, rep, ghop_fate, pred_prod, origin_dry, trt_added_mass) %>% 
+  filter(trt != 'C') %>% 
+  drop_na() %>% 
+  unique() 
+
+# summarize the system inputs data and make a table
+sys_input_compare_summary <- sys_input_compare %>%
+  group_by(trt) %>% 
+  summarize(mean_origin_dry = mean(origin_dry), 
+            se_origin_dry = se(origin_dry),
+            ghop_fate = first(ghop_fate)) %>% 
+  mutate(mean_origin_dry = mean_origin_dry*1000,
+         se_origin_dry = se_origin_dry*1000,
+         .keep = 'unused') %>% 
+  select(trt, ghop_fate, everything())
+
+## BAR PLOT with jitter
+sys_input_compare_summary %>% 
+  ggplot(aes(trt, mean_origin_dry, fill = ghop_fate)) +
+  geom_col(position = 'dodge',
+           color = 'black')+
+  geom_errorbar(aes( ymin = mean_origin_dry - se_origin_dry, 
+                     ymax = mean_origin_dry + se_origin_dry,
+                     width = 0.15)) +
+  geom_jitter(data = sys_input_compare, aes(trt, origin_dry*1000), width = 0.1)+
+  scale_fill_manual(values = vir_4[1:3], name = 'Grasshopper fate') + 
+  labs(#title = '\nOriginal animal input size',
+    x = 'Treatment',
+    y = 'Dry mass (mg)') +
+  scale_x_discrete(labels=bar_x_labels_short) + 
+  theme_yaya() + 
+  theme(#plot.title = element_blank(),
+    axis.text.x = element_text(angle = 30, vjust = 1, hjust=1))
+    # legend.position = 'none')
+
+# my_ggsave(here::here('results/4_mass_system_input.png'), 5.5, 5.5)
+```
+
+
+```{r}
+
+# table with summary stats for mass of system inputs
+knitr::kable(
+  sys_input_compare_summary,
+  col.names = c("Treatment", "Prey fate", "Mean dry mass (mg)", "Standard error"),
+  digits = 2)
+
+
+mean_dry_carcass_mass <- sys_input_compare_summary %>% 
+  filter(trt == 'G') %>% 
+  select(mean_origin_dry)
+```
+
+The mean dry mass of locust carcasses is `r mean_dry_carcass_mass`
+
+
+<br> <br> 
+## Quantity: (a) prey inputs to predators, analysis
+
+This analysis is simply to ensure that the prey fed to each predator did not differ in origin size. We will use just remains (and not the waste treatment) to avoid duplication of the original dry prey mass (since they came from the same predator individuals).
+
+Treatments included: G, MA, MR, WA, WW
+
+```{r, echo=TRUE}
+#---- Data analysis: stats for system inputs ----
+## ANOVA for comparing the system ghop inputs per treatment
+aov_prey_input <- aov(origin_dry ~ trt, filter(sys_input_compare, trt %in% c('G', 'MA', 'MR', 'WA', 'WW')))
+
+summary(aov_prey_input)
+```
+
+
+Result: the mass of prey bodies entering each system is not different (p > 0.05)
+
+Treatment did not have an effect on the initial grasshopper prey mass (i.e. all treatments received prey of similar mass). 
+
+
+
+<br> <br> 
+#### Checking model assumptions (shapiro p = 0.002)
+
+Model plots for assumption checks:
+
+```{r, echo=TRUE}
+par(mfrow=c(2,2))
+plot(aov_prey_input)
+ggqqplot(residuals(aov_prey_input))
+```
+
+1) Check for outliers
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+## source from 
+# https://www.datanovia.com/en/lessons/anova-in-r/#check-assumptions
+## check for extreme outliers
+sys_input_compare %>% 
+  filter(trt %in% c('G', 'MA', 'MR', 'WA', 'WW')) %>% ## comment out if you want the whole dataset
+  group_by(trt) %>% 
+  rstatix::identify_outliers(origin_dry)
+
+```
+
+No outliers. 
+
+2) Check for normality
+The qq plot above looked not so normal, so we'll check with a Shapiro-Wilk test.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+## look at the normality
+ggqqplot(residuals(aov_prey_input))
+
+## shapiro wilks test for more statistically sound test of normality
+rstatix::shapiro_test(residuals(aov_prey_input))
+```
+
+```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+## can also do shapiro test on each group separately, but recommended only for n > 50
+sys_input_compare %>% 
+  filter(trt %in% c('G', 'MA', 'MR', 'WA', 'WW')) %>%
+  group_by(trt) %>% 
+  rstatix::shapiro_test(origin_dry)
+
+## after running this we see it's the mantid products are that are non-normal (makes sense... there were big differences between the two feedings)
+```
+
+The residuals borderline significant with the top level comparisons (and from the graphic QQ plot they are not normal), meaning the assumption of normality is not met. So, we'll check for differences with the non-paramteric Kruskal-Wallis test as an alternative to a one-way ANOVA.
+
+#### ***Kruskal Wallis test
+
+```{r echo=TRUE}
+kruskal.test(origin_dry ~ trt, data = filter(sys_input_compare, trt %in% c('G', 'MA', 'MR', 'WA', 'WW')))
+```
+
+Great! Original grasshopper prey masses were not significantly different.
+
+In my ESA talk, I compared grasshopper carcasses directly to mantid all and spider all using Kruskal-Wallis, so this is the right way forward.
+
+
+
+<br><br>
+## Quantity: (b) predator products for soil microcosms
+
+This is a plot of the mass of each animal necromass addition to soil microcosms. The statistical analyses will separate between the two levels (overall effect, and feeding strategy effect), but this figure is of all treatments. 
+
+Units are in mg. 
+
+```{r microcosm_inputs_summary}
+#---- Figure: treatment inputs comparison -----
+### now check that the treatment input is different
+sys_input_compare %>%
+  group_by(trt) %>% 
+  summarize(mean_trt_added_mass = mean(trt_added_mass)*1000, 
+            se_trt_added_mass = se(trt_added_mass)*1000,
+            ghop_fate = first(ghop_fate)) %>% 
+  ggplot(aes(trt, mean_trt_added_mass, fill = ghop_fate)) +
+  geom_col(position = 'dodge',
+           color = 'black')+
+  geom_errorbar(aes(ymin = mean_trt_added_mass - se_trt_added_mass, 
+                    ymax = mean_trt_added_mass + se_trt_added_mass,
+                    width = 0.15)) +
+  geom_jitter(data = sys_input_compare, aes(trt, trt_added_mass*1000), width = 0.1)+
+  scale_fill_manual(values = vir_4[1:3], name = 'Grasshopper fate') + 
+  labs(title = '\nAnimal necromass size added to microcosm',
+       x = 'Treatment',
+       y = 'Dry mass (mg)') +
+  scale_x_discrete(labels=bar_x_labels_short) + 
+  theme_yaya() + 
+  theme(#plot.title = element_blank(),
+    axis.text.x = element_text(angle = 30, vjust = 1, hjust=1))
+# legend.position = 'none')
+
+# my_ggsave(here::here('results/4_mass_tube_input_jitter.png'), 7, 5.5)
+```
+
+
+Lets break it down into smaller questions/analyses.
+
+### 1) The overall effect of predators
+
+First we want to look at how predators, overall, affect the quantity and quality of animal necromass entering the soil microcosm. 
+
+Treatments: G, MA, WA
+
+#### Plot summary
+
+Here's a barplot:
+
+```{r}
+#---- Figure: treatment inputs comparison -----
+### now check that the treatment input is different
+quant_prod_overall <- sys_input_compare %>%
+  group_by(trt) %>% 
+  filter(trt %in% c('G', 'MA', 'WA')) %>% 
+  mutate(trt_added_mass_mg = trt_added_mass*1000)
+
+quant_prod_overall %>% 
+  summarize(mean_trt_added_mass = mean(trt_added_mass_mg), 
+            se_trt_added_mass = se(trt_added_mass_mg),
+            ghop_fate = first(ghop_fate)) %>% 
+  ggplot(aes(trt, mean_trt_added_mass, fill = ghop_fate)) +
+  geom_col(position = 'dodge',
+           color = 'black')+
+  geom_errorbar(aes(ymin = mean_trt_added_mass - se_trt_added_mass, 
+                    ymax = mean_trt_added_mass + se_trt_added_mass,
+                    width = 0.15)) +
+  geom_jitter(data = quant_prod_overall, aes(trt, trt_added_mass*1000), width = 0.1)+
+  scale_fill_manual(values = vir_4[1:3], name = 'Grasshopper fate') + 
+  labs(title = '\nAnimal necromass size added to microcosm',
+       x = '\nTreatment',
+       y = 'Dry mass (mg)') +
+  scale_x_discrete(labels=bar_x_labels_short) + 
+  theme_yaya()
+# legend.position = 'none')
+
+# my_ggsave(here::here('results/4_mass_tube_input_jitter.png'), 7, 5.5)
+
+```
+
+#### Statistics: ANOVA (shapiro p = 0.092)
+
+```{r}
+aov_prod_overall <- aov(trt_added_mass_mg ~ trt, quant_prod_overall)
+summary(aov_prod_overall)
+plot(aov_prod_overall)
+
+quant_prod_overall %>% 
+  rstatix::identify_outliers(trt_added_mass_mg)
+
+# just the qq plot
+ggqqplot(residuals(aov_prod_overall))
+rstatix::shapiro_test(residuals(aov_prod_overall))
+
+TukeyHSD(aov_prod_overall)
+```
+Shapiro Wilks p = 0.0916
+
+At the moment, everything else is non-normal and requires Kruskal-Wallis, so even though this isn't "statistically significant" in terms of the test, maybe we stick to that? 
+
+#### ***Statistics: Kruskal Wallis
+
+Due to borderline non-normality of the residuals in the standard ANOVA, we will run the Kruskal-Wallis test for top level treatments (carcass, mantid all, widow all):
+
+```{r echo=TRUE}
+kruskal.test(trt_added_mass_mg ~ trt, data = quant_prod_overall)
+```
+
+P < 0.05, so we reject the null hypothesis. Which treatments are different?
+
+#### ***Post-hoc: Dunn's Test
+
+```{r, echo=TRUE}
+dunn.test(quant_prod_overall$trt_added_mass_mg, quant_prod_overall$trt, method = 'bonferroni')
+
+(trt_added_dunn <- dunnTest(trt_added_mass ~ trt, 
+                            sys_input_compare,
+                            method = 'bonferroni'))
+```
+
+Carcass treatments were different from widow treatments, but mantids were not different from carcasses or spiders. 
+
+
+### 2) Effect of feeding strategy on predator products
+
+Next we want to see how the feeding strategy of predators affects the quantity of each type of animal necromass generated by foraging. 
+
+Treatments: MR, ME, WW, WE 
+WW = widow wrapped, which is the remains plus the wrapping silk
+
+#### Plot summary
+```{r}
+quant_pred_feed <- sys_input_compare %>%
+  group_by(trt) %>% 
+  filter(trt %in% c('MR', 'ME', 'WW', 'WE')) %>% 
+  mutate(trt_added_mass_mg = trt_added_mass*1000)
+
+```
+
+#### Stats: ANOVA (shapiro = 0.038) (don't use)
+
+Run the ANOVA and check for normality and outliers.
+```{r, echo = TRUE}
+#---- Data analysis: stats for soil microcosm inputs ----
+## ANOVA for comparing the system ghop inputs per treatment
+aov_quant_feed <- aov(trt_added_mass_mg ~ ghop_fate * pred_prod, quant_pred_feed)
+
+summary(aov_quant_feed)
+par(mfrow=c(2,2))
+plot(aov_quant_feed)
+
+ggqqplot(residuals(aov_quant_feed))
+rstatix::shapiro_test(residuals(aov_quant_feed))
+
+quant_pred_feed %>% 
+  group_by(trt) %>% 
+  rstatix::identify_outliers(trt_added_mass_mg)
+```
+Shapiro wilks p = 0.038
+
+Shapiro-Wilks analysis again suggests non-normality in the predator products, but it's a two-way ANOVA, which doesn't have a clear non-parametric equivalent...
+
+But we'll give ART ANOVA a try!
+
+
+#### ***Stats: ART ANOVA
+
+Aligned Rank Transformation ANOVA: a non-parametric two-way factor test. 
+
+```{r echo=TRUE}
+art_quant_pred_feed <- art(trt_added_mass_mg ~ ghop_fate*pred_prod, quant_pred_feed)
+
+anova(art_quant_pred_feed)
+```
+
+Huzzah it worked! There isn't a difference neither the product type or predator alone would predict amount of necromass produced, but the interaction between the two does (as we can see on the graph). 
+
+```{r}
+## this *would* be the code to test posthoc significance, but we dont need it in our case
+# art.con(art_quant_pred_feed, "ghop_fate:pred_prod", interaction = TRUE, adjust = "bonferroni") %>% 
+#   summary() %>% 
+#   mutate(sig. = symnum(p.value, corr = FALSE, na = FALSE, 
+#                        cutpoints = c(0, 0.001, 0.01, 0.05, 0.1, 1),
+#                        symbols = c("***", "**", "*", ".", " ")))
+```
+
+
+### Other thoughts
+
+----Future considerations?
+
+It may be worth doing a regression analysis on the difference between the predator products (whether a chewing predator's waste is different from a sucking predator's remains and vice versa). Fixed effects, predator product, ghop fate; random effects, predator ID (but is this really important // the question I'm asking here? If no, stick to a simple ANOVA/the Kruskal-Wallis.)
+
+
+----Old statistics from my seminar lecture 2021.04
+
+For the seminar lecture, I ran a quick and dirty ANOVA, but this is not valid due to non-normality of residuals (as tested by the Shapiro-Wilks test). I was also concerned about the non-independence of the samples (since theoretically predator remains and predator wastes are inversely related, as they come from the same predator individuals). After talking to Shelby on 2021.09.25, I've decided to ignore it because it's pretty far removed from the samples taken, and even if I did correct for non-independence, it likely would not be driving the large differences seen between treatments here. 
+
+```{r}
+# rough and dirty: making the ANOVA model
+aov_tube_inputs <- aov(trt_added_mass ~ trt, sys_input_compare) 
+summary(aov_tube_inputs)
+
+par(mfrow=c(2,2))
+plot(aov_tube_inputs)
+
+ggqqplot(resid(aov_tube_inputs))
+shapiro.test(resid(aov_tube_inputs)) ## this is the dry mass of inputs. viraj says not too far from normal, probably ok.
+
+## Data analysis: lm for tube inputs comparison by treatment-----
+lm_tube_inputs <- lm(trt_added_mass ~ trt, sys_input_compare)
+summary(lm_tube_inputs)
+plot(lm_tube_inputs)
+
+
+## Data analysis: lm for tube inputs comparison by treatment-----
+lm_product_inputs0 <- lm(trt_added_mass ~ ghop_fate + pred_prod, sys_input_compare)
+summary(lm_product_inputs0)
+
+lm_product_inputs <- lm(trt_added_mass ~ ghop_fate * pred_prod, sys_input_compare)
+summary(lm_product_inputs)
+plot(lm_product_inputs)
+alias(lm_product_inputs)
+
+
+anova(lm_product_inputs0, lm_product_inputs)
+```
+
+
+----Trying out some weird things...
+
+<br> 
+Here is the same analysis, where I tried to use linear mixed models (I ran it to check for the effect of treatment mass on mineralization rates, but the random factorwas dropped on account of singularity).  
+
+
+```{r}
+# # ## mixed effect models: no random effect
+# lm_sys_inputs <- lm(origin_dry ~ trt, data = sys_input_compare)
+# knitr::kable(summary(lm_sys_inputs))
+# 
+# lm_sys_inputs %>%
+#   broom::tidy() %>%
+#   knitr::kable()
+# 
+# par(mfrow = c(2,2))
+# plot(lm_sys_inputs)
+```
+
+A reminder, the significance of the intercept is that it is different from zero, which is not meaningful in this context (the model control treatment is "prey carcass").
+
+
+## Quality of animal necromass
+
+### 1) C and N data, all products summary + plots
+
+Import all SIEL data for nutrient quality data from samples collected in the feeding assay.
+
+```{r}
+### import SIEL excel sheets
+pp_siel_raw <- read_excel(here::here('data/SIEL data/YT1670-1_TotalCN_Rep, SIEL SO#1670 TRM.xls'), skip=2) %>%
+  bind_rows(read_excel(here::here('data/SIEL data/YT1670-2_TotalCN_Rep, SIEL SO#1670 TRM.xls'), skip=2)) %>% 
+  clean_names() %>% 
+  remove_empty() %>% 
+  filter(sample_id != 'spinach',
+         sample_id != 'SF33F1') %>%  ### HUGE C and N values, some sort of entry error
+  rename(mass_mg = weight_mg)
+
+samp_data <- read_csv(here::here('data/CN_analysis_samples.csv')) %>% 
+  clean_names() %>% 
+  rename(ghop_fate = predator_type) %>% 
+  filter(sample_type != 'silk')
+
+samp_data[is.na(samp_data$ghop_fate),]$ghop_fate <- 'ghop'
+samp_data[samp_data$sample_type ==  'feces',]$sample_type <- 'waste'
+samp_data[samp_data$sample_type ==  'calib',]$sample_type <- 'carcass'
+
+
+## created this key to be able to do ANOVA analyses later
+pred_trt_key <- imported_data %>% 
+  ungroup() %>% 
+  select(trt, ghop_fate, pred_prod) %>% 
+  unique() %>% 
+  filter(!is.na(ghop_fate)) %>% 
+  rename(sample_type = pred_prod) %>% 
+  mutate(ghop_fate = as.character(ghop_fate),
+         sample_type = as.character(sample_type))
+
+# pred_trt_key[which(pred_trt_key$ghop_fate == 'carcass'),]$ghop_fate <- 'ghop'
+pred_trt_key[which(pred_trt_key$sample_type == 'excreta'),]$sample_type <- 'waste'
+
+## join SIEL data with sample meta data and the treatment key
+prod_quality <- pp_siel_raw %>% 
+  left_join(samp_data) %>% 
+  left_join(pred_trt_key, by = c('ghop_fate', 'sample_type')) %>%
+  mutate(pred_prod = paste(ghop_fate, sample_type)) %>% 
+  rename(ghop_fate = ghop_fate) %>% 
+  filter(sample_type != 'silk')
+
+
+# prod_quality[is.na(prod_quality$sample_type),]$sample_type <- 'silk'
+prod_quality[which(prod_quality$ghop_fate == 'ghop'),]$trt <- 'G'
+# prod_quality[which(prod_quality$sample_type == 'silk'),]$trt <- 'WS'
+```
+
+Histograms of each variable:
+
+```{r, fig.show="hold", out.width="50%"}
+## check histograms of the product qualities
+prod_quality %>% 
+  ggplot(aes(total_percent_c)) +
+  geom_histogram()
+  # facet_grid(sample_type ~ ghop_fate)
+
+prod_quality %>% 
+  ggplot(aes(total_percent_n)) +
+  geom_histogram()
+  # facet_grid(sample_type ~ ghop_fate)
+
+# nothing special here
+prod_quality %>% 
+  ggplot(aes(c_n_ratio)) +
+  geom_histogram()
+  # facet_grid(sample_type ~ ghop_fate)
+```
+
+Each treatment mass summarized in a table:
+
+```{r}
+## summarize predator products by treatment
+(prod_summ <- prod_quality %>% 
+  group_by(ghop_fate, sample_type) %>% 
+  summarize(pred_prod = first(pred_prod),
+            mean_c_n_ratio = mean(c_n_ratio),
+            se_c_n_ratio = se(c_n_ratio),
+            n = n()) %>% 
+  ungroup() %>% 
+  knitr::kable())
+```
+
+Plot of C:N ratios for prey carcasses and remains:
+
+```{r}
+prod_quality %>% 
+  group_by(ghop_fate, sample_type) %>% 
+  filter(trt %in% c('G', 'MR', 'WW')) %>% 
+  ggplot(aes(trt, 
+             c_n_ratio,
+             fill = ghop_fate)) + 
+  geom_boxplot(outlier.size = 3, outlier.shape = 23, outlier.fill = 'gray') + 
+  scale_fill_viridis(discrete = TRUE) + 
+  geom_jitter() + 
+  expand_limits(y= 0) + 
+  theme_yaya()
+```
+
+Plot of C:N ratios for predator products:
+
+```{r}
+prod_quality %>% 
+  group_by(ghop_fate, sample_type) %>% 
+  filter(trt %in% c('MR', 'ME', 'WW', 'WE')) %>% 
+  ggplot(aes(trt, 
+             c_n_ratio,
+             fill = ghop_fate)) + 
+  geom_boxplot(outlier.size = 3, outlier.shape = 23, outlier.fill = 'gray') + 
+  scale_fill_viridis(discrete = TRUE) + 
+  geom_jitter() + 
+  expand_limits(y= 0) + 
+  theme_yaya()
+```
+
+
+#### (a) Prey bodies, statistics
+
+First, lets compare the qualities of the prey carcasses that are produced or left behind. 
+
+Lets try a simple ANOVA, but since I think we'll have non-normality, lets run Shapiro-Wilks after as well.
+
+---- Prey carcasses versus predator foraging remains 
+
+```{r}
+aov_quality_carcass <- aov(c_n_ratio ~ ghop_fate, filter(prod_quality, trt %in% c('G', 'MR', 'WW')))
+summary(aov_quality_carcass)
+plot(aov_quality_carcass)
+
+## check for outliers
+outliers_carcass <- prod_quality %>% 
+  filter(trt %in% c('G', 'MR', 'WW')) %>% ## comment out if you want the whole dataset
+  group_by(trt) %>% ## there are a couple extreme outliers if grouped by trt
+    rstatix::identify_outliers(c_n_ratio)
+View(outliers_carcass) ## not that important for dissertation, maybe check on it for publication
+
+## there are some outliers, but the removal of the extreme outliers doesn't change the qualitative nature of the analysis
+
+rstatix::shapiro_test(residuals(aov_quality_carcass))
+```
+
+I ran the above tests twice: once with all the data points, and once without the extreme outliers (identified both visually and with rstatix::identify_outliers).
+
+With all the data, there is some serious non-normality, so I ran a  Kruskal-Wallis.
+
+##### With outliers: Kruskal-Wallis test (maybe don't use?)
+
+Due to non-normality of the residuals in the standard ANOVA, we will run the  Kruskal-Wallis test for the carcass-based treatments:
+
+```{r echo=TRUE}
+## kruskal-wallis for ALL treatments
+kruskal.test(c_n_ratio ~ trt, filter(prod_quality, trt %in% c('G', 'MR', 'WW')))
+```
+
+We reject the null hypothesis. Which treatments are different?
+
+###### Post-hoc: Dunn's Test (could be used to be consistent...)
+
+```{r, echo=TRUE}
+# dunn.test(prod_quality$c_n_ratio, prod_quality$trt, method = 'bonferroni')
+
+dunnTest(c_n_ratio ~ trt,
+         filter(prod_quality, trt %in% c('G', 'MR', 'WW')),
+         method = 'bonferroni')
+```
+
+Ghop carcass did not differ from mantid remains but did differ from spider remains, while mantid remains did not differ from spider remains, and mantid excreta did not differ from spider excreta in quality. Every other comparison was significantly different.
+
+
+##### Without outlier MR05F3
+
+Repeating everything from the plot onward.
+
+Plot of C:N ratios for grasshopper prey carcasses, without 'MR05F3'. 
+
+```{r}
+qual_outliers <- tibble( trt = c('MR05F3')) ## if you change this, check next chunk statistics
+
+## summarize predator products by treatment, without outliers or other treatments
+prod_qual_clean <- prod_quality %>% 
+  group_by(ghop_fate, sample_type) %>% 
+  filter(trt %in% c('G', 'MR', 'WW')) %>% 
+  anti_join(qual_outliers) 
+
+prod_qual_clean %>% 
+  ggplot(aes(trt, 
+             c_n_ratio,
+             fill = ghop_fate)) + 
+  geom_boxplot(outlier.size = 3) + 
+  scale_fill_viridis(discrete = TRUE) + 
+  geom_jitter() + 
+  expand_limits(y= 0) + 
+  theme_yaya()
+
+(prod_summ_clean <- prod_qual_clean %>% 
+    group_by(ghop_fate, sample_type) %>% 
+    summarize(pred_prod = first(pred_prod),
+              mean_c_n_ratio = mean(c_n_ratio),
+              se_c_n_ratio = se(c_n_ratio),
+              n = n()) %>% 
+    ungroup() %>% 
+    knitr::kable())
+```
+
+###### ***C and N statistics without MR05F3: ANOVA
+
+```{r}
+aov_quality_carcass_no_outliers <- aov(c_n_ratio ~ ghop_fate, filter(prod_quality, trt %in% c('G', 'MR', 'WW'), sample_id != 'MR05F3'))
+summary(aov_quality_carcass_no_outliers)
+plot(aov_quality_carcass_no_outliers)
+
+## check for outliers
+(outliers_prod <- prod_quality %>% 
+  filter(trt %in% c('G', 'MR', 'WW')) %>% ## comment out if you want the whole dataset
+  anti_join(qual_outliers) %>% 
+  group_by(trt) %>% ## there are a couple extreme outliers if grouped by trt
+    rstatix::identify_outliers(c_n_ratio))
+## not that important for dissertation, maybe check on it for publication
+
+## there are some outliers, but the removal of the extreme outliers doesn't change the qualitative nature of the analysis
+
+rstatix::shapiro_test(residuals(aov_quality_carcass_no_outliers))
+
+## not checking shapiro wilks by groups because n > 50 and qqplot is preferred
+ggqqplot(prod_qual_clean, 'c_n_ratio', facet.by = 'trt')
+
+```
+
+Without the one single extreme outlier, the data are quite normal. So we can stick to the original ANOVA. 
+
+###### ***Post-hoc: Tukey HSD
+
+```{r}
+rstatix::tukey_hsd(aov_quality_carcass_no_outliers)
+```
+
+Results:
+prey carcasses are not statistically significantly different from mantid remains (do not reject null)
+prey carcasses ARE different from spider prey remains
+same for mantid carcasses, different from spider prey remains
+
+This makes sense because mantids leave behind parts of the prey body that are unadultered, while spiders are digesting the tissues extra-orally and leave behind remains lower in quality.
+
+
+#### (b) Predator products, statistics
+
+```{r}
+aov_pred_prod <- aov(c_n_ratio ~ ghop_fate * sample_type, filter(prod_quality, trt %in% c('MR', 'ME', 'WW', 'WE')))
+
+summary(aov_pred_prod)
+par(mfrow = c(2, 2))
+plot(aov_pred_prod)
+
+## check for outliers
+outliers_pred_prod <- prod_quality %>% 
+    filter(trt %in% c('MR', 'ME', 'WW', 'WE')) %>% 
+    group_by(trt) %>% ## there are a couple extreme outliers if grouped by trt
+    rstatix::identify_outliers(c_n_ratio)
+View(outliers_pred_prod) ## if you want to see whether the tubes are extreme
+
+rstatix::shapiro_test(residuals(aov_pred_prod))
+```
+
+Shapiro test, very not normal. Is it because of the outliers?
+
+
+So lets try again, this time with removing sample SF06F1 because it was an extreme outlier (had an unusually low N), and was only 0.3mg in mass as compared to the other samples that were around 1mg.
+
+```{r}
+aov_pred_prod_clean <- aov(c_n_ratio ~ ghop_fate * sample_type, filter(prod_quality, trt %in% c('MR', 'ME', 'WW', 'WE'), sample_id != 'SF06F1'))
+
+summary(aov_pred_prod_clean)
+par(mfrow = c(2, 2))
+plot(aov_pred_prod_clean)
+
+## check for outliers
+outliers_pred_prod <- prod_quality %>% 
+    filter(trt %in% c('MR', 'ME', 'WW', 'WE'),
+           sample_id != 'SF06F1') %>% 
+    group_by(trt) %>% ## there are a couple extreme outliers if grouped by trt
+    rstatix::identify_outliers(c_n_ratio)
+# View(outliers_pred_prod) ## if you want to see whether the tubes are extreme
+
+rstatix::shapiro_test(residuals(aov_pred_prod_clean))
+```
+
+Lets see the original boxplot again, without the extreme outlier:
+
+```{r}
+prod_quality %>% 
+  group_by(ghop_fate, sample_type) %>% 
+  filter(trt %in% c('MR', 'ME', 'WW', 'WE'),
+         sample_id != 'SF06F1') %>% 
+  ggplot(aes(trt, 
+             c_n_ratio,
+             fill = ghop_fate)) + 
+  geom_boxplot(outlier.size = 3, outlier.shape = 23, outlier.fill = 'gray') + 
+  scale_fill_viridis(discrete = TRUE) + 
+  geom_jitter() + 
+  expand_limits(y= 0) + 
+  theme_yaya()
+```
+
+
+### 2) Protein content, summary
+
+#### Bradford protein
+```{r}
+protein_raw <- read_xlsx(here::here('data/protein analysis/Gideons protein summary.xlsx')) %>% 
+  clean_names() %>% 
+  rename(subsample_mg = mg_subsample_for_protein,
+         lowry_protein_percent = lowry_protein_perc) %>% 
+  select(-protein_vial_number)
+
+protein_raw[which(protein_raw$sample_id == 'F2 S20'),]$sample_id <- 'F2 S20 PR'
+
+protein_bradford <- protein_raw %>% 
+  select(sample_id, bradford_protein_igg, bradford_protein_percent) %>% 
+  separate(sample_id, c("feeding", "ghop_fate_id", "pred_prod")) %>% 
+  mutate(ghop_fate = if_else(substr(ghop_fate_id, 1, 1)=='G', 'calib', 'spider')) %>% 
+  mutate(pred_prod = if_else(is.na(pred_prod), 'carcass', 'remains')) 
+```
+
+Will get a warning about NAs (because some of the string only have one section and not three). 
+
+
+This is boxplot and barplot of the same Bradford protein analysis.
+
+```{r}
+protein_bradford %>% 
+  # group_by(ghop_fate, pred_prod) %>% 
+  # summarize(bradford_se = se(bradford_protein_percent),
+  #           bradford_avg = mean(bradford_protein_percent),
+  #           bradford_n = n()) %>% 
+  ggplot(aes(pred_prod,
+             bradford_protein_percent,
+             fill = ghop_fate)) + 
+  geom_boxplot() + 
+  geom_jitter() + 
+  labs(title = '\nBradford protein analysis, carcasses vs spider remains') + 
+  scale_fill_viridis(discrete = T) +
+  expand_limits(y=0) +
+  theme_yaya()
+
+
+prod_colors <- viridis(4, option = "D")
+
+protein_brad_summ <- protein_bradford %>% 
+    group_by(ghop_fate, pred_prod) %>% 
+    summarize(mean_bradford_protein_percent = mean(bradford_protein_percent),
+              se_bradford_protein_percent = se(bradford_protein_percent),
+              n = n()) %>% 
+    ungroup()
+
+# summary of protein data in a bar plot with error bars
+protein_brad_summ %>% 
+  ggplot(aes(ghop_fate, 
+             mean_bradford_protein_percent, 
+             fill = ghop_fate)) + 
+  geom_bar(stat = 'identity',  position = position_dodge()) +
+  geom_errorbar(aes(ymin = mean_bradford_protein_percent - se_bradford_protein_percent, 
+                    ymax = mean_bradford_protein_percent + se_bradford_protein_percent),
+                width = 0.15) +
+  geom_jitter(data = protein_bradford,
+              aes(ghop_fate,
+                  bradford_protein_percent)) + 
+  scale_fill_manual(values = c(viridis(4)[1], viridis(4)[3])) +
+  # name='Input type',
+  # labels = c('Grasshopper carcass', 'Spider prey remains')) + 
+  scale_x_discrete(name = 'Grasshopper\nfate',
+                   labels = c('Grasshopper\ncarcass', 'Spider\nprey remains')) +
+  labs(title = '\n Protein content',
+       x = 'Necromass type',
+       y = '% protein (Bradford)',
+       color = 'Treatment') +
+  theme_yaya() + 
+  theme(axis.title.x = element_blank(),
+        legend.position = 'none')
+
+# my_ggsave(here::here('results/protein_barplots_bradford.png'), 4, 4)
+
+knitr::kable(protein_brad_summ)
+```
+
+You can see that the remains have 26% less protein than the protein found in the uneaten prey carcass. There is also far less variation. 
+
+
+#### Lowry protein
+```{r}
+protein_lowry <- protein_raw %>% 
+  select(sample_id, lowry_protein_igg, lowry_protein_percent) %>% 
+  separate(sample_id, c("feeding", "ghop_fate_id", "pred_prod")) %>% 
+  mutate(ghop_fate = if_else(substr(ghop_fate_id, 1, 1)=='G', 'calib', 'spider')) %>% 
+  mutate(pred_prod = if_else(is.na(pred_prod), 'carcass', 'remains')) 
+```
+
+Will get a warning about NAs (because some of the string only have one section and not three). 
+
+This is boxplot and barplot of the same Lowry protein analysis.
+
+```{r}
+protein_lowry %>% 
+  # group_by(ghop_fate, pred_prod) %>% 
+  # summarize(lowry_se = se(lowry_protein_percent),
+  #           lowry_avg = mean(lowry_protein_percent),
+  #           lowry_n = n()) %>% 
+  ggplot(aes(pred_prod,
+             lowry_protein_percent,
+             fill = ghop_fate)) + 
+  geom_boxplot() + 
+  geom_jitter() + 
+  labs(title = '\nlowry protein analysis, carcasses vs spider remains') + 
+  scale_fill_viridis(discrete = T) +
+  expand_limits(y=0) +
+  theme_yaya()
+
+prod_colors <- viridis(4, option = "D")
+
+protein_lowry_summ <- protein_lowry %>% 
+    group_by(ghop_fate, pred_prod) %>% 
+    summarize(mean_lowry_protein_percent = mean(lowry_protein_percent),
+              se_lowry_protein_percent = se(lowry_protein_percent),
+              n = n()) %>% 
+    ungroup()
+
+# summary of protein data in a bar plot with error bars
+protein_lowry_summ %>% 
+  ggplot(aes(ghop_fate, 
+             mean_lowry_protein_percent, 
+             fill = ghop_fate)) + 
+  geom_bar(stat = 'identity',  position = position_dodge()) +
+  geom_errorbar(aes(ymin = mean_lowry_protein_percent - se_lowry_protein_percent, 
+                    ymax = mean_lowry_protein_percent + se_lowry_protein_percent),
+                width = 0.15) +
+  geom_jitter(data = protein_lowry,
+              aes(ghop_fate,
+                  lowry_protein_percent)) + 
+  scale_fill_manual(values = c(viridis(4)[1], viridis(4)[3])) +
+  # name='Input type',
+  # labels = c('Grasshopper carcass', 'Spider prey remains')) + 
+  scale_x_discrete(name = 'Grasshopper\nfate',
+                   labels = c('Grasshopper\ncarcass', 'Spider\nprey remains')) +
+  labs(title = '\n Protein content',
+       x = 'Necromass type',
+       y = '% protein (lowry)',
+       color = 'Treatment') +
+  theme_yaya() + 
+  theme(axis.title.x = element_blank(),
+        legend.position = 'none')
+
+# my_ggsave(here::here('results/protein_barplots_lowry.png'), 4, 4)
+
+knitr::kable(protein_lowry_summ)
+```
+
+From the Lowry analysis, we see less of a reduction in the percent protein (15% less protein in remains than in carcasses). Bradford protein analysis had lower percent protein values for both sample types, but the relationship between the two is still the same. 
+
+
+#### ***Stats: Bradford protein, Welch's t-test
+
+This is the one I'll use in the paper, since Bradford protein assays are more widely reported. 
+
+```{r}
+brad1 <- subset(protein_bradford, ghop_fate == 'calib')
+brad2 <- subset(protein_bradford, ghop_fate == 'spider')
+var.test(brad1$bradford_protein_percent, brad2$bradford_protein_percent)
+```
+
+Since the variances of the two groups are unequal, we can try Welch's t-test for unequal variances.  But first we need to check for normality
+
+
+```{r}
+t.test(bradford_protein_percent ~ ghop_fate, data = protein_bradford,
+       var.equal = FALSE, conf.level = 0.95)
+```
+
+Welch's t-test for two samples with unequal variances suggest we reject the null hypothesis that these two groups are the same. So, spider remains has less protein!
+
+
+# Necrobiome function
+
+First look at the daily dynamics of each tube. For this, we need to include the cumulative values.
+
+```{r}
+## graph of phase 1 cumulative C, scaled to biomass
+
+cumul_data <- imported_data %>% 
+  mutate(ghop_fate= first(ghop_fate),
+         origin_dry = first(origin_dry),
+         trt_added_mass = first(trt_added_mass),
+         cumul_c_gross = cumsum(infer_tube_total_daily),
+         infer_daily_scaled = infer_tube_total_daily / trt_added_mass,
+         cumul_c_daily_scaled = cumsum(infer_daily_scaled)) %>% 
+  arrange(tube_id, exp_count)
+
+```
+
+This is an interactive plotly to looking at the daily, individual tube dynamics
+
+```{r}
+## This chunk makes a plotly object from the ggplot to explore raw daily dynamic data from each individual tube
+
+dyn_daily <- cumul_data %>% 
+  group_by(trt, rep) %>% 
+  # filter(group_compute == 1) %>% 
+  # filter(trt == 'WR') %>%
+  # View()
+  ggplot(aes(x = exp_count, y = infer_tube_total_daily, 
+             group = interaction(trt, rep))) +
+  geom_line(aes(color = trt)) + 
+  scale_color_viridis(name = 'Treatment', discrete = TRUE) +
+  labs(title = 'C mineralized daily by each tube',
+       x = 'Incubation Day',
+       y = 'C mineralization (mg)',
+       color = 'Treatment') +
+  theme_dyn
+
+ggplotly(dyn_daily)
+```
+
+
+```{r}
+## This chunk makes a plotly object from the ggplot to explore dynamic CUMULATIVE C data from each individual tube
+
+dyn_cumul <- cumul_data %>% 
+  group_by(trt, rep) %>% 
+  # filter(trt == 'WR') %>% 
+  # View()
+  ggplot(aes(x = exp_count, y = cumul_c_gross, 
+             group = interaction(trt, rep))) +
+  geom_line(aes(color = trt)) + 
+  scale_color_viridis(name = 'Treatment', discrete = TRUE) +
+  labs(title = 'C mineralized cumulatively by each tube',
+       x = 'Incubation Day',
+       y = 'C mineralization (mg)',
+       color = 'Treatment') +
+  theme_dyn
+
+ggplotly(dyn_cumul) 
+```
+
+
+## 1) Overall effect of predators on necrobiome function
+
+So lets look more closely at the treatments that compare the effect of predators on the decomposition of animal necromass.
+
+### Phase 1: overall effect of predator of direct decomposition
+
+#### Phase 1 dynamic plots
+
+```{r}
+## the dynamic, summarized plot of cumulative C
+## PHASE 1
+data_overall_p1 <- cumul_data %>%
+  group_by(trt, rep) %>%
+  filter(phase == 1,
+         group_compute == 1) %>%
+  mutate(cumul_c_gross_phase = cumsum(infer_tube_total_daily)) %>%
+  ungroup()
+  
+dyn_cumul_p1_trt <- data_overall_p1 %>% 
+  group_by(trt, exp_count) %>% 
+  summarize(mean_cumul_c_p = mean(cumul_c_gross_phase),
+            se_cumul_c_p = se(cumul_c_gross_phase),
+            ghop_fate = first(ghop_fate)) %>% 
+  ggplot(aes(x = exp_count, 
+             y = mean_cumul_c_p, 
+             group = trt)) +
+  geom_line(aes(color = trt)) +
+  scale_color_viridis(name = 'Treatment', discrete = TRUE) +
+  labs(title = 'C mineralized cumulatively by each tube, phase 1 only',
+       x = 'Incubation Day',
+       y = 'C mineralization (mg)',
+       color = 'Treatment') +
+  theme_dyn
+
+ggplotly(dyn_cumul_p1_trt)
+```
+
+#### End of phase 1 
+
+The analyses we'll do will be on the statistics at the end of each phase and over the entire experiment.  Here are the data for phase 1.
+
+```{r}
+## Data analysis: bar, end of phase plots by treatment
+## same as above, in bar plot summarized form at the end of the experiment
+end_cumul_p1_trt <- data_overall_p1 %>% 
+  filter(exp_count == max(exp_count))
+
+end_cumul_p1_trt %>% 
+  group_by(trt) %>% 
+  summarize(mean_cumul_c_p = mean(cumul_c_gross_phase),
+            se_cumul_c_p = se(cumul_c_gross_phase),
+            ghop_fate = first(ghop_fate)) %>% 
+  ggplot(aes(x = trt, 
+             y = mean_cumul_c_p, 
+             fill = ghop_fate)) +
+  geom_col(position = 'dodge',
+           color = 'black')+
+  geom_errorbar(aes( ymin = mean_cumul_c_p - se_cumul_c_p, 
+                     ymax = mean_cumul_c_p + se_cumul_c_p,
+                     width = 0.15)) +
+  geom_jitter(data = end_cumul_p1_trt, aes(x = trt, y= cumul_c_gross_phase, group = ghop_fate)) +
+  scale_fill_viridis(name = 'Treatment', discrete = TRUE) +
+  # scale_x_discrete(labels= bar_x_labels) +
+  scale_x_discrete(labels = c('carcass', 'mantid, all', 'spider, all', 'control')) + 
+  labs(title = 'C mineralized cumulatively by treatment, phase 1 only',
+       x = 'Treatment',
+       y = 'C mineralization (mg)',
+       color = 'Treatment') +
+  theme_dyn
+
+```
+
+
+##### Stats: ANOVA (shapiro = 0.001) (don't use) 
+
+First I tried an  ANOVA, and checked for normality since I figure it won't be very normal.
+
+```{r}
+aov_overall_p1 <- aov(cumul_c_gross_phase ~ trt, end_cumul_p1_trt)
+
+summary(aov_overall_p1)
+par(mfrow = c(2,2))
+plot(aov_overall_p1)
+
+rstatix::shapiro_test(residuals(aov_overall_p1))
+```
+
+Shapiro wilks p = 0.001
+
+##### ***Stats:, Kruskal-Wallis
+
+```{r echo=TRUE}
+kruskal.test(cumul_c_gross_phase ~ trt, end_cumul_p1_trt)
+```
+
+Ta-da, Kruskal-Wallis is significant.
+
+#### ***statistics, Dunn Test
+```{r, echo=TRUE}
+(trt_added_dunn <- dunnTest(cumul_c_gross_phase ~ trt, 
+                            end_cumul_p1_trt,
+                            method = 'bonferroni'))
+```
+
+Control is different from the rest, as are the prey carcass treatments. Mantid all and spider all however did not differ. 
+
+
+### Phase 2: plant necromass decomposition
+
+#### Phase 2 dynamic plots
+
+```{r}
+# ### this is the original code from the original script
+# ## the dynamic, summarized plot of cumulative C
+# ## PHASE 2
+# dyn_cumul_p2_trt <- cumul_data %>%
+#   group_by(trt, rep) %>%
+#   filter(phase == 2) %>%
+#   mutate(cumul_c_gross_phase = cumsum(infer_tube_total_daily)) %>%
+#   # View()
+#   ungroup() %>% 
+#   group_by(trt, exp_count) %>% 
+#   summarize(mean_cumul_c_p = mean(cumul_c_gross_phase),
+#             se_cumul_c_p = se(cumul_c_gross_phase),
+#             ghop_fate = first(ghop_fate)) %>% 
+#   ggplot(aes(x = exp_count, 
+#              y = mean_cumul_c_p, 
+#              group = trt)) +
+#   geom_line(aes(color = trt)) +
+#   scale_color_viridis(name = 'Treatment', discrete = TRUE) +
+#   labs(title = 'C mineralized cumulatively by each tube, phase 2 only',
+#        x = 'Incubation Day',
+#        y = 'C mineralization (mg)',
+#        color = 'Treatment') +
+#   theme_dyn
+# 
+# dyn_cumul_p2_trt
+# ggplotly(dyn_cumul_p2_trt)
+# 
+# grid.arrange(dyn_cumul_p2_trt, dyn_cumul_p2_trt, nrow=1)
+
+
+## the dynamic, summarized plot of cumulative C
+## PHASE 2
+data_overall_p2 <- cumul_data %>%
+  group_by(trt, rep) %>%
+  filter(phase == 1,
+         group_compute == 2) %>%
+  mutate(cumul_c_gross_phase = cumsum(infer_tube_total_daily)) %>%
+  ungroup() 
+
+dyn_cumul_p2_trt <- data_overall_p2 %>% 
+  group_by(trt, exp_count) %>% 
+  summarize(mean_cumul_c_p = mean(cumul_c_gross_phase),
+            se_cumul_c_p = se(cumul_c_gross_phase),
+            ghop_fate = first(ghop_fate),
+            pred_prod = first(pred_prod)) %>% 
+  ggplot(aes(x = exp_count, 
+             y = mean_cumul_c_p, 
+             group = trt)) +
+  geom_line(aes(color = trt,
+                linetype = ghop_fate)) +
+  # geom_point(aes(shape = pred_prod)) + 
+  scale_color_viridis(name = 'Treatment', discrete = TRUE) +
+  labs(title = 'C mineralized cumulatively by each tube, phase 2 only',
+       x = 'Incubation Day',
+       y = 'C mineralization (mg)',
+       color = 'Treatment') +
+  theme_dyn
+
+ggplotly(dyn_cumul_p2_trt)
+```
+
+#### End of phase 2 
+
+The analyses we'll do will be on the statistics at the end of each phase and over the entire experiment.  Here are the data for phase 2.
+
+```{r}
+## Data analysis: bar, end of phase plots by treatment
+## same as above, in bar plot summarized form at the end of the experiment
+end_cumul_p2_trt <- data_overall_p2 %>% 
+  filter(exp_count == max(exp_count))
+
+end_cumul_p2_trt %>% 
+  group_by(trt) %>% 
+  summarize(mean_cumul_c_p = mean(cumul_c_gross_phase),
+            se_cumul_c_p = se(cumul_c_gross_phase),
+            ghop_fate = first(ghop_fate)) %>% 
+  ggplot(aes(x = trt, 
+             y = mean_cumul_c_p, 
+             fill = ghop_fate)) +
+  geom_col(position = 'dodge',
+           color = 'black')+
+  geom_errorbar(aes( ymin = mean_cumul_c_p - se_cumul_c_p, 
+                     ymax = mean_cumul_c_p + se_cumul_c_p,
+                     width = 0.15)) +
+  geom_jitter(data = end_cumul_p2_trt, aes(x = trt, y= cumul_c_gross_phase, group = ghop_fate)) +
+  scale_fill_viridis(name = 'Treatment', discrete = TRUE) +
+  # scale_x_discrete(labels= bar_x_labels) +
+  scale_x_discrete(labels = c('carcass', 'mantid, all', 'spider, all', 'control')) + 
+  labs(title = 'C mineralized cumulatively by treatment, phase 2 only',
+       x = 'Treatment',
+       y = 'C mineralization (mg)',
+       color = 'Treatment') +
+  theme_dyn
+
+```
+
+##### Stats: ANOVA (shapiro p = 0.024) (don't use)
+
+First try an ANOVA, and check for normality.
+
+```{r}
+aov_overall_p2 <- aov(cumul_c_gross_phase ~ ghop_fate*pred_prod, end_cumul_p2_trt)
+
+summary(aov_overall_p2)
+par(mfrow = c(2,2))
+plot(aov_overall_p2)
+
+rstatix::shapiro_test(residuals(aov_overall_p2))
+```
+
+Shapiro wilks p = 0.024
+
+##### ***Stats:, ART ANOVA
+
+Aligned Rank Transformation ANOVA: a non-parametric two-way factor test. 
+
+```{r echo=TRUE}
+art_irga_overall_p2 <- art(cumul_c_gross_phase ~ ghop_fate*pred_prod, end_cumul_p2_trt)
+
+anova(art_irga_overall_p2)
+```
+
+
+
