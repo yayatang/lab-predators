@@ -5,7 +5,8 @@ date: "10 August 2021"
 output: 
   html_document: 
     toc: true
-    toc_depth: 5
+    toc_depth: 4
+    toc_float: true
     theme: united
     highlight: tango
     code_folding: hide
@@ -17,25 +18,11 @@ TL;DR:
 These are results from the second chapter in my PhD using graphs and code copied from R scripts on 10 August 2021. 
 Sections with asterisks** mark the sections with statistics to be used for the paper.
 
-
-
+--------------
 
 Here are the items included in this report:
 
-NECROMASS, quality and quantity as organized by experimental stage
-
-* prey products (both carcasses + fed to predators)
-  + quantity 
-    - measured wet mass from all, calculated dry mass from calibration locusts
-  + quality 
-    - analyzed from calibration locusts
-* predator products 
-  + quantity
-    - measured dry mass
-  + quality 
-    - analyzed from feeding assay products
-
-OR organized alternatively, by property:
+_Necromass_
 
 * quantity
   + prey products (both carcasses + fed to predators)
@@ -50,24 +37,30 @@ OR organized alternatively, by property:
     - analyzed from feeding assay products
 
 
-NECROBIOME
+_Necrobiome_
+
 Function in this experiment refers to rates of C the C mineralization.
 
-* Phase 1, animal necromass decomposition
-  + scaled to biomass
-    - remove mantid prey remains treatment (too high)
-    - spider wastes generated highest rates of mineralization, per gram
-  + unscaled function
-    - prey carcasses is highest, spider wastes is lowest
+1) Overall effect of predators on function: G, MA, WA
+    + Phase 1
+    + Phase 2
+      - all treatments with animal products had lower function aka negative legacy
+    + Cumulative overall
 
-* Phase 2, plant necromass decomposition
-  + all treatments with animal products had lower function 
-  + negative legacy
-    - TO DO: are there distinct differences between each?
+2) Computer predator products vs all predator products
+    + Phase 1
+      - calculate difference from litter-only control tubes
+    + Phase 2
+    + Cumulative overall
 
-* Overall microcosm mineralization
-  + total mineralization rates were determined by decomposition in phase 1
-
+3) Predator products by feeding strategy 2x2
+    + unscaled analysis
+    + scaled to biomass
+      - remove mantid prey remains treatment (too high)
+      - spider wastes generated highest rates of mineralization, per gram
+    
+* Overall microcosm mineralization conclusions
+  
 
 
 ```{r setup, include=FALSE}
@@ -88,6 +81,7 @@ library(dunn.test) ## for dunn.test
 library(FSA) ## for dunnTest
 library(readxl)
 library(ARTool)
+library(emmeans)
 
 set.seed(20210926)
 
@@ -128,6 +122,8 @@ vir_4 <- viridis(4)
 
 
 ```
+
+#. 
 
 # Necromass properties
 
@@ -189,7 +185,7 @@ ctrl_data <- imported_data %>%
 ```
 
 
-## Quantity: (a) prey inputs to predators, summary
+## A) Quantity: prey inputs to predators
 
 This is the summary table of the system inputs and again in graphical form. These analyses are basically to show that there is no difference between the groups of prey bodies between treatments.  
 (note, units are in mg)
@@ -258,7 +254,8 @@ The mean dry mass of locust carcasses is `r mean_dry_carcass_mass`
 
 
 <br> <br> 
-## Quantity: (a) prey inputs to predators, analysis
+
+### Prey inputs to predators, analysis
 
 This analysis is simply to ensure that the prey fed to each predator did not differ in origin size. We will use just remains (and not the waste treatment) to avoid duplication of the original dry prey mass (since they came from the same predator individuals).
 
@@ -280,7 +277,8 @@ Treatment did not have an effect on the initial grasshopper prey mass (i.e. all 
 
 
 <br> <br> 
-#### Checking model assumptions (shapiro p = 0.002)
+
+### Checking model assumptions (shapiro p = 0.002)
 
 Model plots for assumption checks:
 
@@ -328,7 +326,7 @@ sys_input_compare %>%
 
 The residuals borderline significant with the top level comparisons (and from the graphic QQ plot they are not normal), meaning the assumption of normality is not met. So, we'll check for differences with the non-paramteric Kruskal-Wallis test as an alternative to a one-way ANOVA.
 
-#### ***Kruskal Wallis test
+#### ___ Stats: Kruskal Wallis test
 
 ```{r echo=TRUE}
 kruskal.test(origin_dry ~ trt, data = filter(sys_input_compare, trt %in% c('G', 'MA', 'MR', 'WA', 'WW')))
@@ -341,7 +339,8 @@ In my ESA talk, I compared grasshopper carcasses directly to mantid all and spid
 
 
 <br><br>
-## Quantity: (b) predator products for soil microcosms
+
+## B) Quantity: predator products for soil microcosms
 
 This is a plot of the mass of each animal necromass addition to soil microcosms. The statistical analyses will separate between the two levels (overall effect, and feeding strategy effect), but this figure is of all treatments. 
 
@@ -411,7 +410,7 @@ quant_prod_overall %>%
   labs(title = '\nAnimal necromass size added to microcosm',
        x = '\nTreatment',
        y = 'Dry mass (mg)') +
-  scale_x_discrete(labels=bar_x_labels_short) + 
+  scale_x_discrete(labels=c('Prey carcass', 'Mantid all', 'Spider all')) +
   theme_yaya()
 # legend.position = 'none')
 
@@ -419,7 +418,7 @@ quant_prod_overall %>%
 
 ```
 
-#### Statistics: ANOVA (shapiro p = 0.092)
+#### Stats: ANOVA (shapiro p = 0.092)
 
 ```{r}
 aov_prod_overall <- aov(trt_added_mass_mg ~ trt, quant_prod_overall)
@@ -439,7 +438,7 @@ Shapiro Wilks p = 0.0916
 
 At the moment, everything else is non-normal and requires Kruskal-Wallis, so even though this isn't "statistically significant" in terms of the test, maybe we stick to that? 
 
-#### ***Statistics: Kruskal Wallis
+#### ***Stats: Kruskal Wallis
 
 Due to borderline non-normality of the residuals in the standard ANOVA, we will run the Kruskal-Wallis test for top level treatments (carcass, mantid all, widow all):
 
@@ -487,8 +486,8 @@ Run the ANOVA and check for normality and outliers.
 aov_quant_feed <- aov(trt_added_mass_mg ~ ghop_fate * pred_prod, quant_pred_feed)
 
 summary(aov_quant_feed)
-par(mfrow=c(2,2))
-plot(aov_quant_feed)
+# par(mfrow=c(2,2))
+# plot(aov_quant_feed)
 
 ggqqplot(residuals(aov_quant_feed))
 rstatix::shapiro_test(residuals(aov_quant_feed))
@@ -496,6 +495,7 @@ rstatix::shapiro_test(residuals(aov_quant_feed))
 quant_pred_feed %>% 
   group_by(trt) %>% 
   rstatix::identify_outliers(trt_added_mass_mg)
+## no outliers
 ```
 Shapiro wilks p = 0.038
 
@@ -526,7 +526,7 @@ Huzzah it worked! There isn't a difference neither the product type or predator 
 ```
 
 
-### Other thoughts
+### 3) Other thoughts
 
 ----Future considerations?
 
@@ -590,7 +590,7 @@ Here is the same analysis, where I tried to use linear mixed models (I ran it to
 A reminder, the significance of the intercept is that it is different from zero, which is not meaningful in this context (the model control treatment is "prey carcass").
 
 
-## Quality of animal necromass
+## C) Quality of animal necromass
 
 ### 1) C and N data, all products summary + plots
 
@@ -642,6 +642,8 @@ prod_quality <- pp_siel_raw %>%
 prod_quality[which(prod_quality$ghop_fate == 'ghop'),]$trt <- 'G'
 # prod_quality[which(prod_quality$sample_type == 'silk'),]$trt <- 'WS'
 ```
+
+##### Plots: distribution, mass summary, C:N ratio plot
 
 Histograms of each variable:
 
@@ -729,7 +731,7 @@ outliers_carcass <- prod_quality %>%
   filter(trt %in% c('G', 'MR', 'WW')) %>% ## comment out if you want the whole dataset
   group_by(trt) %>% ## there are a couple extreme outliers if grouped by trt
     rstatix::identify_outliers(c_n_ratio)
-View(outliers_carcass) ## not that important for dissertation, maybe check on it for publication
+# View(outliers_carcass) ## not that important for dissertation, maybe check on it for publication
 
 ## there are some outliers, but the removal of the extreme outliers doesn't change the qualitative nature of the analysis
 
@@ -738,7 +740,7 @@ rstatix::shapiro_test(residuals(aov_quality_carcass))
 
 I ran the above tests twice: once with all the data points, and once without the extreme outliers (identified both visually and with rstatix::identify_outliers).
 
-With all the data, there is some serious non-normality, so I ran a  Kruskal-Wallis.
+With all the data, there is some serious non-normality, so I ran a Kruskal-Wallis.
 
 ##### With outliers: Kruskal-Wallis test (maybe don't use?)
 
@@ -768,7 +770,7 @@ Ghop carcass did not differ from mantid remains but did differ from spider remai
 
 Repeating everything from the plot onward.
 
-Plot of C:N ratios for grasshopper prey carcasses, without 'MR05F3'. 
+Plot of C:N ratios for grasshopper prey carcasses, without 'MR05F3'. It had an unusually low C *and* N (but less so), so it had a very very high C:N ratio. 
 
 ```{r}
 qual_outliers <- tibble( trt = c('MR05F3')) ## if you change this, check next chunk statistics
@@ -799,7 +801,7 @@ prod_qual_clean %>%
     knitr::kable())
 ```
 
-###### ***C and N statistics without MR05F3: ANOVA
+###### ***Stats: ANOVA
 
 ```{r}
 aov_quality_carcass_no_outliers <- aov(c_n_ratio ~ ghop_fate, filter(prod_quality, trt %in% c('G', 'MR', 'WW'), sample_id != 'MR05F3'))
@@ -807,11 +809,11 @@ summary(aov_quality_carcass_no_outliers)
 plot(aov_quality_carcass_no_outliers)
 
 ## check for outliers
-(outliers_prod <- prod_quality %>% 
+outliers_prod <- prod_quality %>% 
   filter(trt %in% c('G', 'MR', 'WW')) %>% ## comment out if you want the whole dataset
   anti_join(qual_outliers) %>% 
   group_by(trt) %>% ## there are a couple extreme outliers if grouped by trt
-    rstatix::identify_outliers(c_n_ratio))
+  rstatix::identify_outliers(c_n_ratio)
 ## not that important for dissertation, maybe check on it for publication
 
 ## there are some outliers, but the removal of the extreme outliers doesn't change the qualitative nature of the analysis
@@ -841,6 +843,7 @@ This makes sense because mantids leave behind parts of the prey body that are un
 
 #### (b) Predator products, statistics
 
+##### With outliers (shapiro p << 0.001)
 ```{r}
 aov_pred_prod <- aov(c_n_ratio ~ ghop_fate * sample_type, filter(prod_quality, trt %in% c('MR', 'ME', 'WW', 'WE')))
 
@@ -853,41 +856,25 @@ outliers_pred_prod <- prod_quality %>%
     filter(trt %in% c('MR', 'ME', 'WW', 'WE')) %>% 
     group_by(trt) %>% ## there are a couple extreme outliers if grouped by trt
     rstatix::identify_outliers(c_n_ratio)
-View(outliers_pred_prod) ## if you want to see whether the tubes are extreme
+# View(outliers_pred_prod) ## if you want to see whether the tubes are extreme
 
 rstatix::shapiro_test(residuals(aov_pred_prod))
 ```
 
 Shapiro test, very not normal. Is it because of the outliers?
 
+##### Without outliers MR05F3 and SF06F1 (shapiro p = 0.133)
 
-So lets try again, this time with removing sample SF06F1 because it was an extreme outlier (had an unusually low N), and was only 0.3mg in mass as compared to the other samples that were around 1mg.
+So lets try again, this time with removing the extreme outliers MR05F3 and SF06F1. SF06F1 was an extreme outlier (had an unusually low N), and was only 0.3mg in mass as compared to the other samples that were around 1mg.
 
-```{r}
-aov_pred_prod_clean <- aov(c_n_ratio ~ ghop_fate * sample_type, filter(prod_quality, trt %in% c('MR', 'ME', 'WW', 'WE'), sample_id != 'SF06F1'))
-
-summary(aov_pred_prod_clean)
-par(mfrow = c(2, 2))
-plot(aov_pred_prod_clean)
-
-## check for outliers
-outliers_pred_prod <- prod_quality %>% 
-    filter(trt %in% c('MR', 'ME', 'WW', 'WE'),
-           sample_id != 'SF06F1') %>% 
-    group_by(trt) %>% ## there are a couple extreme outliers if grouped by trt
-    rstatix::identify_outliers(c_n_ratio)
-# View(outliers_pred_prod) ## if you want to see whether the tubes are extreme
-
-rstatix::shapiro_test(residuals(aov_pred_prod_clean))
-```
-
-Lets see the original boxplot again, without the extreme outlier:
+Lets see the original boxplot again, without the extreme outliers:
 
 ```{r}
 prod_quality %>% 
   group_by(ghop_fate, sample_type) %>% 
   filter(trt %in% c('MR', 'ME', 'WW', 'WE'),
-         sample_id != 'SF06F1') %>% 
+         sample_id != 'SF06F1',
+         sample_id != 'MR05F3') %>% 
   ggplot(aes(trt, 
              c_n_ratio,
              fill = ghop_fate)) + 
@@ -898,8 +885,44 @@ prod_quality %>%
   theme_yaya()
 ```
 
+###### ***Stats: ANOVA
+
+```{r}
+aov_pred_prod_clean <- aov(c_n_ratio ~ ghop_fate * sample_type, filter(prod_quality, trt %in% c('MR', 'ME', 'WW', 'WE'), sample_id != 'SF06F1', sample_id != 'MR05F3'))
+
+summary(aov_pred_prod_clean)
+par(mfrow = c(2, 2))
+plot(aov_pred_prod_clean)
+
+## check for outliers
+outliers_pred_prod <- prod_quality %>% 
+    filter(trt %in% c('MR', 'ME', 'WW', 'WE'),
+           sample_id != 'SF06F1',
+           sample_id != 'MR05F3') %>% 
+    group_by(trt) %>% ## there are a couple extreme outliers if grouped by trt
+    rstatix::identify_outliers(c_n_ratio)
+# View(outliers_pred_prod) ## if you want to see whether the tubes are extreme
+
+rstatix::shapiro_test(residuals(aov_pred_prod_clean))
+```
+
+
+###### ***Post-hoc: Tukey HSD
+
+```{r}
+rstatix::tukey_hsd(aov_pred_prod_clean) %>% 
+  knitr::kable()
+```
+
+Results:
+Mantid products were not different from spider products, but the quality (C:N) of remains was different from waste. And each of the four combinations was different from the other three. Specifically, any type of waste was much higher in quality (i.e. lower C:N) than any type of remains, spider wastes were slightly higher in quality than mantid wastes, and mantid wastes were slightly higher in quality than and spider wastes.
+
+
 
 ### 2) Protein content, summary
+
+The protein analysis is limited because many of the samples were lost due to the USDA destroying them. We have some carcass samples and some spider remains samples analyzed for protein content using the Bradford and Lowry methods. 
+
 
 #### Bradford protein
 ```{r}
@@ -1053,17 +1076,32 @@ knitr::kable(protein_lowry_summ)
 From the Lowry analysis, we see less of a reduction in the percent protein (15% less protein in remains than in carcasses). Bradford protein analysis had lower percent protein values for both sample types, but the relationship between the two is still the same. 
 
 
-#### ***Stats: Bradford protein, Welch's t-test
+#### Stats: Bradford protein, Welch's t-test
 
 This is the one I'll use in the paper, since Bradford protein assays are more widely reported. 
 
-```{r}
+We will check the variances of the two groups to decide whether it will be a t-test or a Welch's t-test.
+
+```{r echo=FALSE}
+protein_bradford %>% 
+  group_by(ghop_fate) %>% 
+  summarize(n = n(),
+            mean = mean(bradford_protein_percent))
+
 brad1 <- subset(protein_bradford, ghop_fate == 'calib')
 brad2 <- subset(protein_bradford, ghop_fate == 'spider')
 var.test(brad1$bradford_protein_percent, brad2$bradford_protein_percent)
 ```
 
-Since the variances of the two groups are unequal, we can try Welch's t-test for unequal variances.  But first we need to check for normality
+var test p << 0.001
+
+Since the variances of the two groups are unequal, we can try Welch's t-test for unequal variances.  But first we need to check for the normality of each of the samples.
+(from stackexchange: The t-test is invalid for small samples from non-normal distributions, but it is valid for large samples from non-normal distributions. [where large is likely ])
+
+```{r}
+rstatix::shapiro_test(brad1$bradford_protein_percent)
+rstatix::shapiro_test(brad2$bradford_protein_percent)
+```
 
 
 ```{r}
@@ -1071,8 +1109,24 @@ t.test(bradford_protein_percent ~ ghop_fate, data = protein_bradford,
        var.equal = FALSE, conf.level = 0.95)
 ```
 
-Welch's t-test for two samples with unequal variances suggest we reject the null hypothesis that these two groups are the same. So, spider remains has less protein!
+Welch's t-test for two samples with unequal variances suggest we reject the null hypothesis that these two groups are the same. But I'm concerned about the unequivalent sample sizes, and assumptions about normality. So, lets do a Wilcoxon-Mann-Whitney test.
 
+#### ***Stats: Bradford protein, Wilcoxon test
+
+```{r}
+wilcox.test(brad1$bradford_protein_percent, brad2$bradford_protein_percent)
+```
+
+Wilcoxon signed rank test: p << 0.001
+
+
+#.
+
+# __Necrobiome necromass addition? __
+
+Maybe a section on the inferred amounts of biomass/ total C calculated to have been added to each microcosm?
+
+#.
 
 # Necrobiome function
 
@@ -1139,52 +1193,51 @@ ggplotly(dyn_cumul)
 
 ## 1) Overall effect of predators on necrobiome function
 
-So lets look more closely at the treatments that compare the effect of predators on the decomposition of animal necromass.
+So lets look more closely at the treatments that compare the effect of predators on the decomposition of anim  ### All phases, cumulative
 
-### Phase 1: overall effect of predator of direct decomposition
-
-#### Phase 1 dynamic plots
+### A) All phases, cumulative dynamic plot
 
 ```{r}
-## the dynamic, summarized plot of cumulative C
-## PHASE 1
-data_overall_p1 <- cumul_data %>%
-  group_by(trt, rep) %>%
-  filter(phase == 1,
-         group_compute == 1) %>%
+data_overall_all <- cumul_data %>%
+  group_by(trt, rep) %>% ## this is a more flexible way to group by tube
+  filter(group_compute == 1) %>%
   mutate(cumul_c_gross_phase = cumsum(infer_tube_total_daily)) %>%
-  ungroup()
-  
-dyn_cumul_p1_trt <- data_overall_p1 %>% 
+  # this is actually a duplicate column of cumulative values
+  ungroup() 
+
+dyn_cumul_q1_all <- data_overall_all %>% 
   group_by(trt, exp_count) %>% 
   summarize(mean_cumul_c_p = mean(cumul_c_gross_phase),
             se_cumul_c_p = se(cumul_c_gross_phase),
-            ghop_fate = first(ghop_fate)) %>% 
+            ghop_fate = first(ghop_fate),
+            pred_prod = first(pred_prod)) %>% 
   ggplot(aes(x = exp_count, 
              y = mean_cumul_c_p, 
              group = trt)) +
-  geom_line(aes(color = trt)) +
+  geom_line(aes(color = trt,
+                linetype = ghop_fate)) +
+  # geom_point(aes(shape = pred_prod)) +
   scale_color_viridis(name = 'Treatment', discrete = TRUE) +
-  labs(title = 'C mineralized cumulatively by each tube, phase 1 only',
+  labs(title = 'C mineralized cumulatively by each tube, all phases',
        x = 'Incubation Day',
        y = 'C mineralization (mg)',
        color = 'Treatment') +
   theme_dyn
 
-ggplotly(dyn_cumul_p1_trt)
+ggplotly(dyn_cumul_q1_all)
 ```
 
-#### End of phase 1 
+#### End of all phases 
 
-The analyses we'll do will be on the statistics at the end of each phase and over the entire experiment.  Here are the data for phase 1.
+Here are the values at the end of the experiment:
 
 ```{r}
 ## Data analysis: bar, end of phase plots by treatment
 ## same as above, in bar plot summarized form at the end of the experiment
-end_cumul_p1_trt <- data_overall_p1 %>% 
+end_cumul_q1_all <- data_overall_all %>% 
   filter(exp_count == max(exp_count))
 
-end_cumul_p1_trt %>% 
+end_cumul_q1_all %>% 
   group_by(trt) %>% 
   summarize(mean_cumul_c_p = mean(cumul_c_gross_phase),
             se_cumul_c_p = se(cumul_c_gross_phase),
@@ -1197,10 +1250,140 @@ end_cumul_p1_trt %>%
   geom_errorbar(aes( ymin = mean_cumul_c_p - se_cumul_c_p, 
                      ymax = mean_cumul_c_p + se_cumul_c_p,
                      width = 0.15)) +
-  geom_jitter(data = end_cumul_p1_trt, aes(x = trt, y= cumul_c_gross_phase, group = ghop_fate)) +
+  geom_jitter(data = end_cumul_q1_all, aes(x = trt, y= cumul_c_gross_phase, group = ghop_fate)) +
   scale_fill_viridis(name = 'Treatment', discrete = TRUE) +
   # scale_x_discrete(labels= bar_x_labels) +
   scale_x_discrete(labels = c('carcass', 'mantid, all', 'spider, all', 'control')) + 
+  labs(title = 'C mineralized cumulatively by treatment, all phases',
+       x = 'Treatment',
+       y = 'C mineralization (mg)',
+       color = 'Treatment') +
+  theme_dyn
+
+```
+
+##### ***Stats: ANOVA (shapiro p = 0.670) (ANOVA p << 0.001, F = 9.029)
+
+First try an ANOVA, and check for normality.
+
+```{r}
+outliers_q1_all <- end_cumul_q1_all %>% 
+  # group_by(trt) %>%
+  rstatix::identify_outliers(cumul_c_gross_phase)
+# View(outliers_q1_all)
+
+aov_overall_all <- aov(cumul_c_gross_phase ~ trt, end_cumul_q1_all)
+
+summary(aov_overall_all)
+
+ggqqplot(residuals(aov_overall_all))
+rstatix::shapiro_test(residuals(aov_overall_all))
+```
+
+Shapiro wilks p = 0.670
+
+So actually, the data from all phases are normal than phase 1, and we see that treatment *does* have an effect. Which treatments?
+
+
+###### ***Post-hoc: Tukey HSD
+
+```{r}
+rstatix::tukey_hsd(aov_overall_all) %>% 
+  arrange(group1) %>% 
+  knitr::kable()
+```
+
+---Results: (originally written when this section was after phase 1 and phase 2 results) 
+
+Control and prey carcass treatments are very different (p << 0.001).
+Controls are not different from the two predator treatments
+The two predator treatments don't differ from one another
+But the carcass treatment differs mantid all and spider all.
+
+---Discussion:
+
+This makes some sense. The overall effect of the predators has primarily do to with the C mineralized in phase 1. In phase 2 where we tested the legacy effect of animal necromass added in phase 1, we saw all treatments receiving animal necromass had reduced function (lower than control tubes).
+
+Some possible explanations: 
+--we saw in some quality levels in chapter 1, that function was depressed across various soils
+--these were desert soils, which may have a more restricted range of ability (due to their more extreme circumstances)
+
+---Things to consider in the future:
+Maybe look at the amount of C added to each tube, and consider scaling the C response as a fraction of the total C available in each tube. 
+
+
+### B) Phase 1... animal necromass decomp
+
+The overall effect of predator of direct decomposition
+
+###_ Phase 1 dynamic plots
+
+This is a plot of the CO2 respiration of each treatment during phase 1.
+
+```{r}
+## the dynamic, summarized plot of cumulative C
+## PHASE 1
+data_overall_p1 <- cumul_data %>%
+  group_by(trt, rep) %>%
+  filter(phase == 1,
+         group_compute == 1) %>%
+  mutate(cumul_c_gross_phase = cumsum(infer_tube_total_daily)) %>%
+  ungroup()
+  
+# pick <- function(condition){
+#   function(d) d %>% filter(!!enquo(condition))
+# }
+
+dyn_cumul_q1_p1 <- data_overall_p1 %>% 
+  group_by(trt, exp_count) %>% 
+  summarize(mean_cumul_c_p = mean(cumul_c_gross_phase),
+            se_cumul_c_p = se(cumul_c_gross_phase),
+            ghop_fate = first(ghop_fate),
+            phase_count = first(phase_count)) %>% 
+  ggplot(aes(x = exp_count, 
+             y = mean_cumul_c_p, 
+             group = trt)) +
+  geom_line(aes(color = trt)) +
+  # geom_point(data = pick(~phase_count !is.na), aes(shape = trt)) +
+    # geom_point(aes(color = phase_count))
+  scale_color_viridis(name = 'Treatment', discrete = TRUE) +
+  labs(title = 'C mineralized cumulatively by each tube, phase 1 only',
+       x = 'Incubation Day',
+       y = 'C mineralization (mg)',
+       color = 'Treatment') +
+  theme_dyn
+
+ggplotly(dyn_cumul_q1_p1)
+```
+
+
+#### End of phase 1 
+
+The analyses we'll do will be on the statistics at the end of each phase and over the entire experiment.  Here are the data for phase 1.
+
+```{r}
+## Data analysis: bar, end of phase plots by treatment
+## same as above, in bar plot summarized form at the end of the experiment
+end_cumul_q1_p1 <- data_overall_p1 %>% 
+  filter(exp_count == max(exp_count))
+
+end_cumul_q1_p1 %>% 
+  group_by(trt) %>% 
+  summarize(mean_cumul_c_p = mean(cumul_c_gross_phase),
+            se_cumul_c_p = se(cumul_c_gross_phase),
+            ghop_fate = first(ghop_fate)) %>% 
+  ggplot(aes(x = trt, 
+             y = mean_cumul_c_p, 
+             fill = ghop_fate)) +
+  geom_col(position = 'dodge',
+           color = 'black')+
+  geom_errorbar(aes( ymin = mean_cumul_c_p - se_cumul_c_p, 
+                     ymax = mean_cumul_c_p + se_cumul_c_p,
+                     width = 0.15)) +
+  geom_jitter(data = end_cumul_q1_p1, aes(x = trt, y= cumul_c_gross_phase, group = ghop_fate)) +
+  scale_fill_viridis(name = 'Treatment', discrete = TRUE) +
+  # scale_x_discrete(labels= bar_x_labels) +
+  scale_x_discrete(labels = c('carcass', 'mantid, all', 'spider, all', 'control')) +
   labs(title = 'C mineralized cumulatively by treatment, phase 1 only',
        x = 'Treatment',
        y = 'C mineralization (mg)',
@@ -1209,86 +1392,75 @@ end_cumul_p1_trt %>%
 
 ```
 
-
-##### Stats: ANOVA (shapiro = 0.001) (don't use) 
+##### ___Stats: ANOVA (shapiro = 0.001)
 
 First I tried an  ANOVA, and checked for normality since I figure it won't be very normal.
 
 ```{r}
-aov_overall_p1 <- aov(cumul_c_gross_phase ~ trt, end_cumul_p1_trt)
+outliers_q1_p1 <- end_cumul_q1_p1 %>% 
+  # group_by(trt) %>%
+  rstatix::identify_outliers(cumul_c_gross_phase)
+# View(outliers_q1_p1)
+
+# q1_p1_outliers <- tibble(tube_id = c('G.11', 'G.12'))
+
+aov_overall_p1 <- aov(cumul_c_gross_phase ~ trt,
+                      # anti_join(end_cumul_q1_p1, q1_p1_outliers))
+                      end_cumul_q1_p1)
 
 summary(aov_overall_p1)
-par(mfrow = c(2,2))
-plot(aov_overall_p1)
 
+ggqqplot(residuals(aov_overall_p1))
 rstatix::shapiro_test(residuals(aov_overall_p1))
 ```
 
 Shapiro wilks p = 0.001
 
-##### ***Stats:, Kruskal-Wallis
-
-```{r echo=TRUE}
-kruskal.test(cumul_c_gross_phase ~ trt, end_cumul_p1_trt)
+##### Posthoc: Tukey's HSD
+```{r}
+rstatix::tukey_hsd(aov_overall_p1)
 ```
 
-Ta-da, Kruskal-Wallis is significant.
 
-#### ***statistics, Dunn Test
+##### ___Stats: Kruskal-Wallis
+
+```{r echo=TRUE}
+kruskal.test(cumul_c_gross_phase ~ trt, end_cumul_q1_p1)
+```
+
+Kruskal-Wallis p << 0.001. 
+
+##### ___Stats: Dunn Test
 ```{r, echo=TRUE}
-(trt_added_dunn <- dunnTest(cumul_c_gross_phase ~ trt, 
-                            end_cumul_p1_trt,
+(dunn_q1_p1 <- dunnTest(cumul_c_gross_phase ~ trt, 
+                            end_cumul_q1_p1,
                             method = 'bonferroni'))
 ```
 
 Control is different from the rest, as are the prey carcass treatments. Mantid all and spider all however did not differ. 
 
 
-### Phase 2: plant necromass decomposition
+### C) Phase 2... plant necromass decomp
+
+Here we want to compare how the decomposition of 500mg of plant litter is affected by the phase 1 deposition of animal necromass.
 
 #### Phase 2 dynamic plots
 
+This is comparing the overall effect of predators in phase 2. 
+
+Treatments: G, MA, WA
+
 ```{r}
-# ### this is the original code from the original script
-# ## the dynamic, summarized plot of cumulative C
-# ## PHASE 2
-# dyn_cumul_p2_trt <- cumul_data %>%
-#   group_by(trt, rep) %>%
-#   filter(phase == 2) %>%
-#   mutate(cumul_c_gross_phase = cumsum(infer_tube_total_daily)) %>%
-#   # View()
-#   ungroup() %>% 
-#   group_by(trt, exp_count) %>% 
-#   summarize(mean_cumul_c_p = mean(cumul_c_gross_phase),
-#             se_cumul_c_p = se(cumul_c_gross_phase),
-#             ghop_fate = first(ghop_fate)) %>% 
-#   ggplot(aes(x = exp_count, 
-#              y = mean_cumul_c_p, 
-#              group = trt)) +
-#   geom_line(aes(color = trt)) +
-#   scale_color_viridis(name = 'Treatment', discrete = TRUE) +
-#   labs(title = 'C mineralized cumulatively by each tube, phase 2 only',
-#        x = 'Incubation Day',
-#        y = 'C mineralization (mg)',
-#        color = 'Treatment') +
-#   theme_dyn
-# 
-# dyn_cumul_p2_trt
-# ggplotly(dyn_cumul_p2_trt)
-# 
-# grid.arrange(dyn_cumul_p2_trt, dyn_cumul_p2_trt, nrow=1)
-
-
 ## the dynamic, summarized plot of cumulative C
 ## PHASE 2
 data_overall_p2 <- cumul_data %>%
   group_by(trt, rep) %>%
-  filter(phase == 1,
-         group_compute == 2) %>%
+  filter(phase == 2,
+         group_compute == 1) %>%
   mutate(cumul_c_gross_phase = cumsum(infer_tube_total_daily)) %>%
   ungroup() 
 
-dyn_cumul_p2_trt <- data_overall_p2 %>% 
+dyn_cumul_q1_p2 <- data_overall_p2 %>% 
   group_by(trt, exp_count) %>% 
   summarize(mean_cumul_c_p = mean(cumul_c_gross_phase),
             se_cumul_c_p = se(cumul_c_gross_phase),
@@ -1307,20 +1479,20 @@ dyn_cumul_p2_trt <- data_overall_p2 %>%
        color = 'Treatment') +
   theme_dyn
 
-ggplotly(dyn_cumul_p2_trt)
+ggplotly(dyn_cumul_q1_p2)
 ```
 
 #### End of phase 2 
 
-The analyses we'll do will be on the statistics at the end of each phase and over the entire experiment.  Here are the data for phase 2.
+The analyses we'll do will be on the statistics at the end of each phase and over the entire experiment. Here are the data for phase 2.
 
 ```{r}
 ## Data analysis: bar, end of phase plots by treatment
 ## same as above, in bar plot summarized form at the end of the experiment
-end_cumul_p2_trt <- data_overall_p2 %>% 
+end_cumul_q1_p2 <- data_overall_p2 %>% 
   filter(exp_count == max(exp_count))
 
-end_cumul_p2_trt %>% 
+end_cumul_q1_p2 %>% 
   group_by(trt) %>% 
   summarize(mean_cumul_c_p = mean(cumul_c_gross_phase),
             se_cumul_c_p = se(cumul_c_gross_phase),
@@ -1333,7 +1505,7 @@ end_cumul_p2_trt %>%
   geom_errorbar(aes( ymin = mean_cumul_c_p - se_cumul_c_p, 
                      ymax = mean_cumul_c_p + se_cumul_c_p,
                      width = 0.15)) +
-  geom_jitter(data = end_cumul_p2_trt, aes(x = trt, y= cumul_c_gross_phase, group = ghop_fate)) +
+  geom_jitter(data = end_cumul_q1_p2, aes(x = trt, y= cumul_c_gross_phase, group = ghop_fate)) +
   scale_fill_viridis(name = 'Treatment', discrete = TRUE) +
   # scale_x_discrete(labels= bar_x_labels) +
   scale_x_discrete(labels = c('carcass', 'mantid, all', 'spider, all', 'control')) + 
@@ -1345,12 +1517,17 @@ end_cumul_p2_trt %>%
 
 ```
 
-##### Stats: ANOVA (shapiro p = 0.024) (don't use)
+##### ***Stats: ANOVA (shapiro p = 0.798) (ANOVA p < 0.01, F = 5.539 )
 
 First try an ANOVA, and check for normality.
 
 ```{r}
-aov_overall_p2 <- aov(cumul_c_gross_phase ~ ghop_fate*pred_prod, end_cumul_p2_trt)
+outliers_q1_p2 <- end_cumul_q1_p2 %>% 
+  # group_by(trt) %>%
+  rstatix::identify_outliers(cumul_c_gross_phase)
+# View(outliers_q1_p2)
+
+aov_overall_p2 <- aov(cumul_c_gross_phase ~ trt, end_cumul_q1_p2)
 
 summary(aov_overall_p2)
 par(mfrow = c(2,2))
@@ -1359,17 +1536,1395 @@ plot(aov_overall_p2)
 rstatix::shapiro_test(residuals(aov_overall_p2))
 ```
 
-Shapiro wilks p = 0.024
+Shapiro wilks p = 0.798
 
-##### ***Stats:, ART ANOVA
+So actually, the data from phase 2 are more normal than phase 1, and if we use a standard ANOVA we see that treatment *does* have an effect. Which treatments?
+
+
+##### ***Post-hoc: Tukey HSD
+
+```{r}
+rstatix::tukey_hsd(aov_overall_p2) %>% 
+  arrange(group2) %>% 
+  knitr::kable()
+```
+
+Results:
+Control tubes were different from all other treatments (and much higher). Prey carcasses didnt differ from mantid all or spider all, and vice versa. 
+
+
+#. 
+
+## 2) Potential interactive effects of predator foraging by-products
+
+Now lets look at the effect of predator products separately, and whether they interact to increase necrobiome function when occuring together.
+
+Calculate the difference from control in each tube, and then add the two separated predator treatments together.
+
+```{r}
+
+calc_diff <- cumul_data %>%
+  left_join(select(ctrl_data, c('exp_count', 'ctrl_daily_mean', 'ctrl_daily_se')), by = c('exp_count')) %>% 
+  group_by(trt, rep) %>% 
+  arrange(exp_count) %>% 
+  mutate(tube_daily_diff = infer_tube_total_daily - ctrl_daily_mean) %>% 
+  # infer_diff_scaled = tube_daily_diff / trt_added_mass) 
+  ungroup()
+         
+
+calc_mantid <- calc_diff %>% 
+  filter(ghop_fate == 'mantid',
+         pred_prod != 'all') %>% 
+  group_by(ghop_fate, rep, exp_count) %>% 
+  summarize(tube_daily_diff = sum(tube_daily_diff),
+            origin_dry = first(origin_dry),
+            computed_added_mass = sum(trt_added_mass)) %>% 
+  mutate(trt = factor('MC'),
+         pred_prod = factor('computed'),
+         tube_id = paste0(trt, '.', formatC(rep, width=2, flag="0")))
+  
+calc_spider <- calc_diff %>% 
+  filter(ghop_fate == 'spider',
+         pred_prod != 'all') %>% 
+  group_by(ghop_fate, rep, exp_count) %>% 
+  summarize(tube_daily_diff = sum(tube_daily_diff),
+            origin_dry = first(origin_dry),
+            computed_added_mass = sum(trt_added_mass)) %>% 
+  mutate(trt = factor('WC'),
+         pred_prod = factor('computed'),
+         tube_id = paste0(trt, '.', formatC(rep, width=2, flag="0")))
+
+irga_meta_ctrl <- cumul_data %>% 
+  ungroup() %>% 
+  select(phase, phase_count, exp_count) %>% 
+  unique() %>% 
+  left_join(select(ctrl_data, c('exp_count', 'ctrl_daily_mean', 'ctrl_daily_se')), by = c('exp_count'))
+
+computed_pred_data <- bind_rows(calc_mantid, calc_spider) %>% 
+  left_join(irga_meta_ctrl) %>% 
+  bind_rows(filter(calc_diff, trt %in% c('MA', 'WA'))) %>% 
+  mutate(pred_prod = factor(pred_prod, levels = c('none', 'all', 'computed', 'remains', 'excreta')))
+
+```
+
+### A) All phases, cumulative
+
+#### All phases, cumulative dynamic plot
+
+This plot may be left out, because the final results don't seem to make a whole lot of sense when considered together...
+
+```{r}
+data_computed_all <- computed_pred_data %>%
+  group_by(trt, rep) %>% ## this is a more flexible way to group by tube
+  mutate(cumul_c_diff_phase = cumsum(tube_daily_diff)) %>%
+  ungroup() 
+
+dyn_diff_q2_all <- data_computed_all %>% 
+  group_by(trt, exp_count) %>% 
+  summarize(mean_cumul_diff_p = mean(cumul_c_diff_phase),
+            se_cumul_diff_p = se(cumul_c_diff_phase),
+            ghop_fate = first(ghop_fate),
+            pred_prod = first(pred_prod),
+            phase_count = first(phase_count)) %>% 
+  ggplot(aes(x = exp_count, 
+             y = mean_cumul_diff_p, 
+             group = trt)) +
+  geom_line(aes(color = trt,
+                linetype = pred_prod)) +
+  # geom_point(aes(shape = pred_prod)) +
+  geom_hline(aes(yintercept = 0), color="gray", size = 1.5, linetype = "dashed") + 
+  scale_color_viridis(name = 'Treatment', discrete = TRUE) +
+  labs(title = 'C mineralized cumulatively as the difference from control, all phases',
+       x = 'Incubation Day',
+       y = 'C mineralization (mg)') +
+  theme_dyn
+
+ggplotly(dyn_diff_q2_all)
+```
+
+##### Dynamic diff plot to compare all treatments
+
+Lets take a quick look at how this compares to other treatments (difference relative to control)
+
+```{r}
+computed_pred_compare <- bind_rows(calc_mantid, calc_spider) %>% 
+  left_join(irga_meta_ctrl) %>% 
+  bind_rows(filter(calc_diff, trt %in% c('MA', 'WA', 'MR', 'ME', 'WW', 'WE'))) %>% 
+  mutate(pred_prod = factor(pred_prod, levels = c('none', 'all', 'computed', 'remains', 'excreta')))
+
+data_computed_all_compare <- computed_pred_compare %>%
+  group_by(trt, rep) %>% ## this is a more flexible way to group by tube
+  mutate(cumul_c_diff_phase = cumsum(tube_daily_diff)) %>%
+  ungroup() 
+
+dyn_diff_q2_all_compare <- data_computed_all_compare %>% 
+  group_by(trt, exp_count) %>% 
+  summarize(mean_cumul_diff_p = mean(cumul_c_diff_phase),
+            se_cumul_diff_p = se(cumul_c_diff_phase),
+            ghop_fate = first(ghop_fate),
+            pred_prod = first(pred_prod),
+            phase_count = first(phase_count)) %>% 
+  ggplot(aes(x = exp_count, 
+             y = mean_cumul_diff_p, 
+             group = ghop_fate)) +
+  geom_line(aes(color = trt,
+                linetype = pred_prod)) +
+  # geom_point(aes(shape = pred_prod)) +
+  geom_hline(aes(yintercept = 0), color="gray", size = 1.5, linetype = "dashed") + 
+  scale_color_viridis(name = 'Treatment', discrete = TRUE) +
+  labs(title = 'C mineralized cumulatively as the difference from control, all phases',
+       x = 'Incubation Day',
+       y = 'C mineralization (mg)') +
+  theme_dyn
+
+ggplotly(dyn_diff_q2_all_compare)
+
+```
+
+
+
+#### End of all phases 
+
+Here are the computed values at the end of the experiment:
+
+```{r}
+## Data analysis: bar, end of phase plots by treatment
+## same as above, in bar plot summarized form at the end of the experiment
+end_cumul_q2_all <- data_computed_all %>% 
+  filter(exp_count == max(exp_count))
+
+end_cumul_q2_all %>% 
+  group_by(trt) %>% 
+  summarize(mean_cumul_diff_p = mean(cumul_c_diff_phase),
+            se_cumul_diff_p = se(cumul_c_diff_phase),
+            ghop_fate = first(ghop_fate),
+            pred_prod = first(pred_prod)) %>% 
+  ggplot(aes(x = trt, 
+             y = mean_cumul_diff_p, 
+             fill = trt)) +
+  geom_col(position = 'dodge',
+           color = 'black') +
+  geom_errorbar(aes( ymin = mean_cumul_diff_p - se_cumul_diff_p, 
+                     ymax = mean_cumul_diff_p + se_cumul_diff_p,
+                     width = 0.15)) +
+  geom_jitter(data = end_cumul_q2_all, 
+              aes(x = trt, y= cumul_c_diff_phase),
+              width = 0.2) +
+  scale_fill_viridis(name = 'Treatment', discrete = TRUE) +
+  # scale_x_discrete(labels= bar_x_labels) +
+  scale_x_discrete(labels = c('mantid computed', 'spider computed', 'mantid all', 'spider all')) +
+  labs(title = 'C mineralized cumulatively as difference from control, all phases',
+       x = 'Treatment',
+       y = 'C mineralization (mg)',
+       color = 'Treatment') +
+  # facet_grid(. ~ ghop_fate) + 
+  theme_dyn
+
+```
+
+##### ***Stats: ANOVA (shapiro p = 0.142) (ANOVA p > 0.05, pred prod F = 1.614)
+
+First try an ANOVA, and check for normality.
+
+```{r}
+outliers_q2_all <- end_cumul_q2_all %>% 
+  # group_by(trt) %>%
+  rstatix::identify_outliers(cumul_c_diff_phase)
+# View(outliers_q2_all)
+
+aov_computed_all <- aov(cumul_c_diff_phase ~ ghop_fate * pred_prod, end_cumul_q2_all)
+
+summary(aov_computed_all)
+
+ggqqplot(residuals(aov_computed_all))
+
+rstatix::shapiro_test(residuals(aov_computed_all))
+```
+
+
+--- Results
+
+Looking cumulatively, there is no difference between computing the predator products and them combined in the same tube. 
+
+When broken down between each phase, we see that in the first phase the computed treatments have higher respiration rates than the products all together, while in phase 2 the reverse is true. During decomposition of plant necromass, 
+
+
+(Visual) Compared to the separate predator products:
+Mantid all microcoasms
+
+--- Discussion
+
+The combining of predator products in the same 
+
+
+
+### B) Phase 1... computed predator products
+
+```{r}
+data_computed_p1 <- computed_pred_data %>%
+  group_by(trt, rep) %>%
+  filter(phase == 1) %>% 
+  mutate(cumul_c_diff_phase = cumsum(tube_daily_diff)) %>%
+  ungroup()
+  
+dyn_diff_q2_p1 <- data_computed_p1 %>% 
+  group_by(trt, exp_count) %>% 
+  summarize(mean_cumul_diff_p = mean(cumul_c_diff_phase),
+            se_cumul_diff_p = se(cumul_c_diff_phase),
+            ghop_fate = first(ghop_fate),
+            pred_prod = first(pred_prod),
+            phase_count = first(phase_count)) %>% 
+  ggplot(aes(x = exp_count, 
+             y = mean_cumul_diff_p)) +
+  geom_line(aes(color = trt,
+                linetype = pred_prod)) +
+  # geom_point(data = pick(~phase_count !is.na), aes(shape = trt)) +
+    # geom_point(aes(color = phase_count))
+  geom_hline(aes(yintercept = 0), color="gray", size = 1.5, linetype = "dashed") + 
+  scale_color_viridis(name = 'Treatment', discrete = TRUE) +
+  labs(title = 'C mineralized cumulatively as the difference from control, phase 1 only',
+       x = 'Incubation Day',
+       y = 'C mineralization (mg)',
+       color = 'Treatment') +
+  theme_dyn
+
+ggplotly(dyn_diff_q2_p1)
+```
+
+
+#### End of phase 1 
+
+Here are the data for phase 1.
+
+```{r}
+## Data analysis: bar, end of phase plots by treatment
+## same as above, in bar plot summarized form at the end of the experiment
+end_diff_q2_p1 <- data_computed_p1 %>% 
+  filter(exp_count == max(exp_count))
+
+end_diff_q2_p1 %>% 
+  group_by(trt) %>% 
+  summarize(mean_cumul_diff_p = mean(cumul_c_diff_phase),
+            se_cumul_diff_p = se(cumul_c_diff_phase),
+            ghop_fate = first(ghop_fate),
+            pred_prod = first(pred_prod)) %>% 
+  ggplot(aes(x = trt, 
+             y = mean_cumul_diff_p, 
+             fill = trt)) +
+  geom_col(position = 'dodge',
+           color = 'black')+
+  geom_errorbar(aes( ymin = mean_cumul_diff_p - se_cumul_diff_p, 
+                     ymax = mean_cumul_diff_p + se_cumul_diff_p,
+                     width = 0.15)) +
+  geom_jitter(data = end_diff_q2_p1, aes(x = trt, y= cumul_c_diff_phase, group = ghop_fate)) +
+  scale_fill_viridis(name = 'Treatment', discrete = TRUE) +
+  # scale_x_discrete(labels= bar_x_labels) +
+  # scale_x_discrete(labels = c('carcass', 'mantid, all', 'spider, all', 'control')) + 
+  labs(title = 'C mineralized cumulatively by treatment, phase 1 only',
+       x = 'Treatment',
+       y = 'C mineralization (mg)',
+       color = 'Treatment') +
+  theme_dyn
+```
+
+
+##### ___Stats: ANOVA (shapiro = 0.412) (ANOVA p = 0.865)
+
+First I tried an  ANOVA, and checked for normality.
+
+```{r}
+outliers_q2_p1 <- end_diff_q2_p1 %>% 
+  # group_by(trt) %>%
+  rstatix::identify_outliers(cumul_c_diff_phase)
+# View(outliers_q2_p1)
+
+aov_computed_p1 <- aov(cumul_c_diff_phase ~ trt, end_diff_q2_p1)
+
+summary(aov_computed_p1)
+par(mfrow = c(2,2))
+plot(aov_computed_p1)
+
+rstatix::shapiro_test(residuals(aov_computed_p1))
+```
+
+Shapiro wilks p = 0.412. Looks ok, so we can consider keeping it.
+
+##### ___Stats:, Kruskal-Wallis p = 0.958
+
+```{r echo=TRUE}
+kruskal.test(cumul_c_diff_phase ~ trt, end_diff_q2_p1)
+```
+
+Kruskal-Wallis p = 0.958.
+
+No effect of treatment / predator product addition on C mineralization in the first phase. 
+
+
+### C) Phase 2... plots
+
+```{r}
+data_computed_p2 <- computed_pred_data %>%
+  group_by(trt, rep) %>%
+  filter(phase == 2) %>% 
+  mutate(cumul_c_diff_phase = cumsum(tube_daily_diff)) %>%
+  select(trt, rep, exp_count, infer_tube_total_daily, ctrl_daily_mean, tube_daily_diff, cumul_c_diff_phase, everything()) %>% 
+  ungroup()
+  
+dyn_diff_q2_p2 <- data_computed_p2 %>% 
+  group_by(trt, exp_count) %>% 
+  summarize(mean_cumul_diff_p = mean(cumul_c_diff_phase),
+            se_cumul_diff_p = se(cumul_c_diff_phase),
+            ghop_fate = first(ghop_fate),
+            pred_prod = first(pred_prod),
+            phase_count = first(phase_count),
+            mean_origin_dry = mean(origin_dry)) %>% 
+  # View()
+  ggplot(aes(x = exp_count, 
+             y = mean_cumul_diff_p, 
+             label = mean_origin_dry)) +
+  geom_line(aes(color = trt,
+                linetype = pred_prod)) +
+  # geom_point(data = pick(~phase_count !is.na), aes(shape = trt)) +
+    # geom_point(aes(color = phase_count))
+  geom_hline(aes(yintercept = 0), color="gray", size = 1.5, linetype = "dashed") + 
+  scale_color_viridis(name = 'Treatment', discrete = TRUE) +
+  labs(title = 'C mineralized cumulatively as the difference from control, phase 2 only',
+       x = 'Incubation Day',
+       y = 'C mineralization (mg)',
+       color = 'Treatment') +
+  theme_dyn
+
+ggplotly(dyn_diff_q2_p2)
+```
+
+
+#### End of phase 2 
+
+Here are the data for phase 2.
+
+```{r}
+## the dynamic, summarized plot of cumulative C
+## PHASE 2
+end_diff_q2_p2 <- data_computed_p2 %>% 
+  filter(exp_count == max(exp_count))
+
+end_diff_q2_p2 %>% 
+  group_by(trt) %>% 
+  summarize(mean_cumul_diff_p = mean(cumul_c_diff_phase),
+            se_cumul_diff_p = se(cumul_c_diff_phase),
+            ghop_fate = first(ghop_fate),
+            pred_prod = first(pred_prod)) %>% 
+  ggplot(aes(x = trt, 
+             y = mean_cumul_diff_p, 
+             fill = trt)) +
+  geom_col(position = 'dodge',
+           color = 'black')+
+  geom_errorbar(aes( ymin = mean_cumul_diff_p - se_cumul_diff_p, 
+                     ymax = mean_cumul_diff_p + se_cumul_diff_p,
+                     width = 0.15)) +
+  geom_jitter(data = end_diff_q2_p2, aes(x = trt, y= cumul_c_diff_phase, group = ghop_fate)) +
+  scale_fill_viridis(name = 'Treatment', discrete = TRUE) +
+  # scale_x_discrete(labels= bar_x_labels) +
+  # scale_x_discrete(labels = c('carcass', 'mantid, all', 'spider, all', 'control')) + 
+  labs(title = 'C mineralized cumulatively by treatment, phase 2 only',
+       x = 'Treatment',
+       y = 'C mineralization (mg)',
+       color = 'Treatment') +
+  theme_dyn
+```
+
+
+##### ___Stats: ANOVA (shapiro = 0.615) (ANOVA pred prod p = 0.002)
+
+First I tried an ANOVA, and checked for normality.
+
+```{r}
+outliers_q2_p2 <- end_diff_q2_p2 %>% 
+  group_by(trt) %>% ## there are a couple extreme outliers if grouped by trt
+  rstatix::identify_outliers(cumul_c_diff_phase)
+# View(outliers_q2_p2)
+## no extreme outliers in this dataset
+
+aov_computed_p2 <- aov(cumul_c_diff_phase ~ ghop_fate * pred_prod, end_diff_q2_p2)
+summary(aov_computed_p2)
+
+# par(mfrow = c(2,2))
+# plot(aov_computed_p2)
+ggqqplot(residuals(aov_computed_p2))
+rstatix::shapiro_test(residuals(aov_computed_p2))
+```
+Shapiro wilks p = 0.615
+
+##### Posthoc, Tukey's
+
+```{r}
+rstatix::tukey_hsd(aov_computed_p2) %>% 
+  knitr::kable()
+```
+
+
+Looks pretty normal... but I'm not sure an ANOVA would hold up in other datasets. Anyway, the results of the ANOVA + posthoc with the two factors and the interaction term suggest there's a difference between the predator products, but not between the predator types.
+
+There is also one interaction effect, where mantid all is different from spider computed (this isn't very meaningful). 
+
+##### Stats:, Kruskal-Wallis p = 0.041
+
+```{r echo=TRUE}
+kruskal.test(cumul_c_diff_phase ~ trt, end_diff_q2_p2)
+```
+
+The Kruskal wallis test appears to have the same p-statistic as the simple ANOVA (formula with cumul_c_diff_phase ~ trt). This makes me suspicious... Anyway it doesn't have the two factorial terms. 
+
+
+##### ___Stats: ART ANOVA (pred prod p = 0.005, F = 8.842)
+
+I'm going to give ART ANOVA a try here also, since the data seem relatively normal, but all the previous IRGA data doesn't seem particularly normal. 
 
 Aligned Rank Transformation ANOVA: a non-parametric two-way factor test. 
 
 ```{r echo=TRUE}
-art_irga_overall_p2 <- art(cumul_c_gross_phase ~ ghop_fate*pred_prod, end_cumul_p2_trt)
+art_computed_p2 <- art(cumul_c_diff_phase ~ ghop_fate * pred_prod, end_diff_q2_p2)
 
-anova(art_irga_overall_p2)
+anova(art_computed_p2)
 ```
 
+pred_prod p = 0.0047 (this p value is )
+
+ART ANOVA suggests there is a effect of combining the predator products over having them in one tube. Lets check the posthoc.
+
+##### Posthoc: estimate = 11.3 for all - computed comparison)
+
+```{r}
+art.con(art_computed_p2, "pred_prod", interaction = T, adjust = "bonferroni") %>%
+  summary() %>%
+  mutate(sig. = symnum(p.value, corr = FALSE, na = FALSE,
+                       cutpoints = c(0, 0.001, 0.01, 0.05, 0.1, 1),
+                       symbols = c("***", "**", "*", ".", " ")))
+```
+
+---Results
+
+There was no difference in the fate of the grasshoppers (i.e. whether it was eaten by a chewing vs sucking predator), but there was an effect of computed predator products treatment (i.e. computed values were *lower* in CO2 respiration rate than the treatments receiving all predator foraging by-products in the same tube. 
+
+CO2 respiration rate than the computed sum of the respiration rate of each of the two products in separate microcosms).
+
+
+---Discussion
+
+There appears to be a legacy effect, that the addition of animal necromass depresses the function of the necrobiome. This was surprising, because we expected to see improved function with the addition of high quality necromass. 
+
+The addition of both products into each microcosm resulted in higher function than each of the products alone. It was also the case that the computer addition of 
+
+However these soils are from the desert (where the two predators are found in the same environment), and it may be true that this necrobiome has more limited range of function.
+
+
+#.
+#.
+
+## 3) Effect of predator feeding strategy on necrobiome function
+
+### --UNSCALED---
+
+So lets look more closely at the treatments that compare the effect of predators on the decomposition of animal necromass.
+
+### A) All phases
+
+#### *) All phases dynamic plot
+
+```{r}
+data_strat_unscaled_all <- cumul_data %>%
+  group_by(trt, rep) %>% ## this is a more flexible way to group by tube
+  filter(group_compute == 2) %>% # for all the predator product treatments
+  mutate(cumul_c_gross_phase = cumsum(infer_tube_total_daily)) %>%
+  # this is actually a duplicate column of cumulative values
+  ungroup() 
+
+dyn_cumul_q3_un_all <- data_strat_unscaled_all %>% 
+  group_by(trt, exp_count) %>% 
+  summarize(mean_cumul_c_p = mean(cumul_c_gross_phase),
+            se_cumul_c_p = se(cumul_c_gross_phase),
+            ghop_fate = first(ghop_fate),
+            pred_prod = first(pred_prod)) %>% 
+  ggplot(aes(x = exp_count, 
+             y = mean_cumul_c_p, 
+             group = trt)) +
+  geom_line(aes(color = trt,
+                linetype = ghop_fate)) +
+  # geom_point(aes(shape = pred_prod)) +
+  scale_color_viridis(name = 'Treatment', discrete = TRUE) +
+  labs(title = 'C mineralized cumulatively by each tube, all phases',
+       x = 'Incubation Day',
+       y = 'C mineralization (mg)',
+       color = 'Treatment') +
+  theme_dyn
+
+ggplotly(dyn_cumul_q3_un_all)
+```
+
+#### End of all phases 
+
+Here are the predator product values at the end of the experiment:
+
+```{r}
+## Data analysis: bar, end of phase plots by treatment
+## same as above, in bar plot summarized form at the end of the experiment
+end_cumul_q3_un_all <- data_strat_unscaled_all %>% 
+  filter(exp_count == max(exp_count))
+
+end_cumul_q3_un_all %>% 
+  group_by(trt) %>% 
+  summarize(mean_cumul_c_p = mean(cumul_c_gross_phase),
+            se_cumul_c_p = se(cumul_c_gross_phase),
+            ghop_fate = first(ghop_fate),
+            pred_prod = first(pred_prod)) %>% 
+  ggplot(aes(x = trt, 
+             y = mean_cumul_c_p, 
+             fill = trt,
+             label = pred_prod),
+         group = interaction(ghop_fate, pred_prod)) + 
+  geom_col(position = 'dodge', color = 'black')+
+  geom_errorbar(aes( ymin = mean_cumul_c_p - se_cumul_c_p, 
+                     ymax = mean_cumul_c_p + se_cumul_c_p,
+                     width = 0.15)) +
+  geom_jitter(data = end_cumul_q3_un_all, 
+              aes(x = trt, y= cumul_c_gross_phase, group = ghop_fate),
+              width = 0.2) +
+  scale_fill_viridis(name = 'Treatment', discrete = TRUE) +
+  # scale_x_discrete(labels= bar_x_labels) +
+  scale_x_discrete(labels = c('mantid remains', 'mantid waste', 'spider remains', 'spider waste')) +
+  labs(title = 'C mineralized cumulatively by treatment, all phases',
+       x = '\nTreatment',
+       y = 'C mineralization (mg)\n',
+       color = 'Treatment') +
+  theme_dyn
+
+```
+
+##### ***Stats: ANOVA (shapiro p = 0.280) (ANOVA pred_prod p < 0.001, F = 13.711)
+
+First try an ANOVA, and check for normality.
+
+```{r}
+outliers_q3_un_all <- end_cumul_q3_un_all %>% 
+  # group_by(trt) %>%
+  rstatix::identify_outliers(cumul_c_gross_phase)
+# View(outliers_q3_un_all)
+
+aov_strategy_all <- aov(cumul_c_gross_phase ~ ghop_fate * pred_prod, end_cumul_q3_un_all)
+
+summary(aov_strategy_all)
+
+ggqqplot(residuals(aov_strategy_all))
+rstatix::shapiro_test(residuals(aov_strategy_all))
+```
+
+ANOVA significance
+
+pred prod p = 0.001
+ghop_fate * pred_prod p = 0.032
+
+
+##### ***Post-hoc: Tukey HSD
+
+```{r}
+rstatix::tukey_hsd(aov_strategy_all) %>% 
+  knitr::kable()
+```
+
+---Results
+Over the entire experiment, predator products were significantly different from one another (remains were different from excreta). 
+
+For specific interactions, spider excreta had the lowest respiration rates and differed significantly from mantid remains and spider remains (although there was no difference between mantid excreta and spider excreta). 
+
+
+--Discussion
+Here we wanted to test whether the feeding strategy of a predator would result in qualitatively different responses in necrobiome function. Although the overall effect of the predator was not significant, spider wastes resulted in a much lower response than other treatments. Now lets look at phases 1 and 2 to see whether the effect is from the direct decomposition of the animal necromass, or the indirect functional change in plant necrobiomass decomposition. 
+
+
+
+### B) Phase 1... overall effect of predator of direct decomposition
+
+#### Phase 1 dynamic plots
+
+This is a plot of the CO2 respiration of each relevant treatment during phase 1.
+
+```{r}
+## the dynamic, summarized plot of cumulative C
+## PHASE 1
+data_strat_unscaled_p1 <- cumul_data %>%
+  group_by(trt, rep) %>%
+  filter(phase == 1,
+         group_compute == 2) %>%
+  mutate(cumul_c_gross_phase = cumsum(infer_tube_total_daily)) %>%
+  ungroup()
+  
+dyn_cumul_q3_un_p1 <- data_strat_unscaled_p1 %>% 
+  group_by(trt, exp_count) %>% 
+  summarize(mean_cumul_c_p = mean(cumul_c_gross_phase),
+            se_cumul_c_p = se(cumul_c_gross_phase),
+            ghop_fate = first(ghop_fate),
+            phase_count = first(phase_count)) %>% 
+  ggplot(aes(x = exp_count, 
+             y = mean_cumul_c_p, 
+             group = trt)) +
+  geom_line(aes(color = trt)) +
+  # geom_point(data = pick(~phase_count !is.na), aes(shape = trt)) +
+    # geom_point(aes(color = phase_count))
+  scale_color_viridis(name = 'Treatment', discrete = TRUE) +
+  labs(title = 'C mineralized cumulatively by each tube, phase 1 only',
+       x = 'Incubation Day',
+       y = 'C mineralization (mg)',
+       color = 'Treatment') +
+  theme_dyn
+
+ggplotly(dyn_cumul_q3_un_p1)
+```
+
+
+#### End of phase 1 
+
+The analyses we'll do will be on the statistics at the end of each phase and over the entire experiment.  Here are the data for phase 1.
+
+```{r}
+## Data analysis: bar, end of phase plots by treatment
+## same as above, in bar plot summarized form at the end of the experiment
+end_cumul_q3_un_p1 <- data_strat_unscaled_p1 %>% 
+  filter(exp_count == max(exp_count))
+
+end_cumul_q3_un_p1 %>% 
+  group_by(trt) %>% 
+  summarize(mean_cumul_c_p = mean(cumul_c_gross_phase),
+            se_cumul_c_p = se(cumul_c_gross_phase),
+            ghop_fate = first(ghop_fate),
+            pred_prod = first(pred_prod)) %>% 
+  ggplot(aes(x = trt, 
+             y = mean_cumul_c_p, 
+             fill = trt)) +
+  geom_col(position = 'dodge',
+           color = 'black')+
+  geom_errorbar(aes( ymin = mean_cumul_c_p - se_cumul_c_p, 
+                     ymax = mean_cumul_c_p + se_cumul_c_p,
+                     width = 0.15)) +
+  geom_jitter(data = end_cumul_q3_un_p1, 
+              aes(x = trt, y= cumul_c_gross_phase, group = ghop_fate),
+              width = 0.2) +
+  scale_fill_viridis(name = 'Treatment', discrete = TRUE) +
+  # scale_x_discrete(labels= bar_x_labels) +
+  scale_x_discrete(labels = c('mantid remains', 'mantid waste', 'spider remains', 'spider waste')) +
+  labs(title = 'C mineralized cumulatively by treatment, phase 1 only',
+       x = 'Treatment',
+       y = 'C mineralization (mg)',
+       color = 'Treatment') +
+  theme_dyn
+```
+
+
+This table summarizes the mean mass of each treatment that was added to the soil microcosms:
+
+```{r}
+end_cumul_q3_un_p1 %>% 
+  group_by(trt) %>% 
+  summarize(mean_cumul_c_p = mean(cumul_c_gross_phase),
+            se_cumul_c_p = se(cumul_c_gross_phase),
+            ghop_fate = first(ghop_fate),
+            pred_prod = first(pred_prod),
+            mean_trt_added_mass = mean(trt_added_mass)) %>% 
+  knitr::kable()
+```
+
+
+#### Trt added mass vs C mineralized
+
+Just to understand the effect of the amount of necromass added, here's a plot of the mass added to each microcosm against the C mineralization of the phase.
+
+```{r}
+## see if the trt added mass drove this effect
+end_cumul_q3_un_p1 %>% 
+  ggplot(aes(x = trt_added_mass, # *1000, # can use this if you want two axes to be same metric
+             y = cumul_c_gross_phase,
+             group = trt)) + 
+  geom_point(aes(color = trt)) +
+  scale_color_viridis(name = 'Treatment', discrete = TRUE) +
+  labs(title = 'C mineralized cumulatively by microcosm added mass, phase 2 only',
+       x = 'Original product mass (mg)',
+       y = 'C mineralization (mg)',
+       color = 'Treatment') +
+  theme_dyn
+
+regress_trt_add <- lm(cumul_c_gross_phase ~ trt_added_mass * trt, # pred_prod,
+                      end_cumul_q3_un_p1)
+summary(regress_trt_add)
+
+```
+
+
+##### Stats: ANOVA (shapiro = 0.024) (ghop_fate:pred_prod p = 0.001 F = 11.793)
+
+First I tried an ANOVA, and checked for normality since I figure it won't be very normal.
+
+```{r}
+outliers_q3_un_p1 <- end_cumul_q3_un_p1 %>% 
+  # group_by(trt) %>%
+  rstatix::identify_outliers(cumul_c_gross_phase)
+# View(outliers_q3_un_p1) ## no outliers
+
+aov_strategy_p1 <- aov(cumul_c_gross_phase ~ ghop_fate*pred_prod, end_cumul_q3_un_p1)
+
+summary(aov_strategy_p1)
+ggqqplot(residuals(aov_strategy_p1))
+
+rstatix::shapiro_test(residuals(aov_strategy_p1))
+```
+
+Shapiro wilks p = 0.024 because of some high numbers on the right side. 
+
+
+###### Posthoc: Tukey's
+
+```{r}
+rstatix::tukey_hsd(aov_strategy_p1) %>% 
+  knitr::kable()
+```
+
+spider remains and spider excreta were significantly different (p adj = 0.004)
+
+mantid excreta and spider excreta were significantly different (p adj = 0.039)
+
+
+##### Stats: ART ANOVA (pred prod p = 0.005, F = 8.842)
+
+I'm going to give ART ANOVA a try here also, since the data seem relatively normal.
+
+Aligned Rank Transformation ANOVA: a non-parametric two-way factor test. 
+
+```{r echo=TRUE}
+art_strategy_p1 <- art(cumul_c_gross_phase ~ ghop_fate * pred_prod, end_cumul_q3_un_p1)
+
+anova(art_strategy_p1)
+```
+
+Here, the effect of predator products is not significant, but the interaction is very significant.
+
+###### Posthoc: estimate = 7.92 for remains - excreta comparison)
+
+```{r}
+art.con(art_strategy_p1, "ghop_fate:pred_prod", interaction = T, adjust = "bonferroni") %>%
+  summary() %>%
+  mutate(sig. = symnum(p.value, corr = FALSE, na = FALSE,
+                       cutpoints = c(0, 0.001, 0.01, 0.05, 0.1, 1),
+                       symbols = c("***", "**", "*", ".", " ")))
+```
+
+
+So this interaction significance is mainly driven by difference between mantid remains and spider excreta.
+
+---Discussion
+
+We see from the correlation between the mass of animal products added to the microcosm and the total C mineralized in phase 1 that 
+
+
+### C) Phase 2
+
+Here we want to compare how the decomposition of 500mg of plant litter is affected by the phase 1 deposition of animal necromass.
+
+#### Phase 2 dynamic plots, plant necromass decomposition
+
+This is comparing the overall effect of predators in phase 2. 
+
+Treatments: G, MA, WA
+
+```{r}
+## the dynamic, summarized plot of cumulative C
+## PHASE 2
+data_strat_unscaled_p2 <- cumul_data %>%
+  group_by(trt, rep) %>%
+  filter(phase == 2,
+         group_compute == 2) %>%
+  mutate(cumul_c_gross_phase = cumsum(infer_tube_total_daily)) %>%
+  ungroup() 
+
+dyn_cumul_q3_un_p2 <- data_strat_unscaled_p2 %>% 
+  group_by(trt, exp_count) %>% 
+  summarize(mean_cumul_c_p = mean(cumul_c_gross_phase),
+            se_cumul_c_p = se(cumul_c_gross_phase),
+            ghop_fate = first(ghop_fate),
+            pred_prod = first(pred_prod)) %>% 
+  ggplot(aes(x = exp_count, 
+             y = mean_cumul_c_p, 
+             group = trt)) +
+  geom_line(aes(color = trt,
+                linetype = ghop_fate)) +
+  # geom_point(aes(shape = pred_prod)) + 
+  scale_color_viridis(name = 'Treatment', discrete = TRUE) +
+  labs(title = 'C mineralized cumulatively by each tube, phase 2 only',
+       x = 'Incubation Day',
+       y = 'C mineralization (mg)',
+       color = 'Treatment') +
+  theme_dyn
+
+ggplotly(dyn_cumul_q3_un_p2)
+```
+
+#### End of phase 2 
+
+The analyses we'll do will be on the statistics at the end of each phase and over the entire experiment. Here are the data for phase 2.
+
+```{r}
+## Data analysis: bar, end of phase plots by treatment
+## same as above, in bar plot summarized form at the end of the experiment
+end_cumul_q3_un_p2 <- data_strat_unscaled_p2 %>% 
+  filter(exp_count == max(exp_count))
+
+end_cumul_q3_un_p2 %>% 
+  group_by(trt) %>% 
+  summarize(mean_cumul_c_p = mean(cumul_c_gross_phase),
+            se_cumul_c_p = se(cumul_c_gross_phase),
+            ghop_fate = first(ghop_fate),
+            pred_prod = first(pred_prod)) %>% 
+  ggplot(aes(x = trt, 
+             y = mean_cumul_c_p, 
+             fill = ghop_fate,
+             label = pred_prod)) +
+  geom_col(position = 'dodge',
+           color = 'black')+
+  geom_errorbar(aes( ymin = mean_cumul_c_p - se_cumul_c_p, 
+                     ymax = mean_cumul_c_p + se_cumul_c_p,
+                     width = 0.15)) +
+  geom_jitter(data = end_cumul_q3_un_p2, aes(x = trt, y= cumul_c_gross_phase, group = ghop_fate)) +
+  scale_fill_viridis(name = 'Treatment', discrete = TRUE) +
+  # scale_x_discrete(labels= bar_x_labels) +
+  scale_x_discrete(labels = c('carcass', 'mantid, all', 'spider, all', 'control')) + 
+  labs(title = 'C mineralized cumulatively by treatment, phase 2 only',
+       x = 'Treatment',
+       y = 'C mineralization (mg)',
+       color = 'Treatment') +
+  theme_dyn
+```
+
+#### Trt added mass vs C mineralized
+
+```{r}
+## see if the trt added mass drove this effect
+end_cumul_q3_un_p2 %>% 
+  ggplot(aes(x = trt_added_mass, # *1000,
+             y = cumul_c_gross_phase,
+             group = trt)) + 
+  geom_point(aes(color = trt)) +
+  scale_color_viridis(name = 'Treatment', discrete = TRUE) +
+  labs(title = 'C mineralized cumulatively by microcosm added mass, phase 2 only',
+       x = 'Original product mass (mg)',
+       y = 'C mineralization (mg)',
+       color = 'Treatment') +
+  theme_dyn
+
+regress_trt_add_p2 <- lm(cumul_c_gross_phase ~ trt_added_mass * trt, # pred_prod,
+                         end_cumul_q3_un_p2)
+                      # filter(end_cumul_q3_un_p2, tube_id != 'WW.04'))
+summary(regress_trt_add_p2)
+
+```
+
+If you remove the treatment var, there is still a significant effect of the amount of necromass added to each treatment. And if you remove the one outlier, the significance drops from 0.055 to 0.028 and neither had interaction effect significance.
+
+
+##### ***Stats: ANOVA (shapiro p = 0.798) (ANOVA p < 0.01, F = 5.539 )
+
+First try an ANOVA, and check for normality.
+
+```{r}
+outliers_q3_un_p2 <- end_cumul_q3_un_p2 %>% 
+  # group_by(trt) %>%
+  rstatix::identify_outliers(cumul_c_gross_phase)
+# View(outliers_q3_un_p2) ## WW.04 is a non-extreme outlier
+
+aov_strategy_p2 <- aov(cumul_c_gross_phase ~ ghop_fate * pred_prod, end_cumul_q3_un_p2)
+
+summary(aov_strategy_p2)
+ggqqplot(residuals(aov_strategy_p2))
+
+rstatix::shapiro_test(residuals(aov_strategy_p2))
+```
+
+Shapiro wilks p = 0.798
+
+So actually, the data from phase 2 are more normal than phase 1, and if we use a standard ANOVA we see that treatment *does* have an effect. Which treatments?
+
+
+##### ***Post-hoc: Tukey HSD
+
+```{r}
+rstatix::tukey_hsd(aov_overall_p2) %>% 
+  # arrange(group2) %>% 
+  knitr::kable()
+```
+
+Results:
+Control tubes were different from all other treatments (and much higher). Prey carcasses didnt differ from mantid all or spider all, and vice versa. 
+
+
+### --SCALED--
+
+From the obvious effect of mass, it's worth scaling the response to the mass added (at least in phase 1)
+
+### A) All phases
+
+#### *) All phases dynamic plot, --WITH ERRORBARS--
+
+```{r}
+data_strat_scaled_all <- cumul_data %>%
+  group_by(trt, rep) %>% ## this is a more flexible way to group by tube
+  filter(group_compute == 2) %>% # for all the predator product treatments
+         # trt != 'MR') %>% 
+  mutate(cumul_c_gross_phase = cumsum(infer_tube_total_daily),
+         cumul_gross_phase_scaled = cumul_c_gross_phase / trt_added_mass) %>%
+  ungroup() 
+
+data_strat_scaled_all_summ <- data_strat_scaled_all %>% 
+  group_by(trt, exp_count) %>% 
+  summarize(mean_cumul_c_p = mean(cumul_gross_phase_scaled),
+            se_cumul_c_p = se(cumul_gross_phase_scaled),
+            ghop_fate = first(ghop_fate),
+            pred_prod = first(pred_prod),
+            phase_count = first(phase_count))
+
+dyn_cumul_q3_sc_all <- data_strat_scaled_all_summ %>% 
+  ggplot(aes(x = exp_count, 
+             y = mean_cumul_c_p, 
+             group = trt)) +
+  geom_line(aes(color = trt,
+                linetype = ghop_fate)) +
+  geom_errorbar(data = filter(data_strat_scaled_all_summ, !(is.na(phase_count))),
+                aes(ymin = mean_cumul_c_p - se_cumul_c_p,
+                    ymax = mean_cumul_c_p + se_cumul_c_p, 
+                    color = trt)) + 
+  # geom_point(aes(shape = pred_prod)) +
+  scale_color_viridis(name = 'Treatment', discrete = TRUE) +
+  labs(title = 'C mineralized cumulatively by each tube, scaled, all phases',
+       x = 'Incubation Day',
+       y = 'C mineralization (mg)',
+       color = 'Treatment') +
+  theme_dyn
+
+ggplotly(dyn_cumul_q3_sc_all)
+```
+
+Spider wast well above the other two treatments that were included (spider remains, and then mantid wastes, in that order)
+
+#### End of all phases 
+
+Here are the predator product values at the end of the experiment:
+
+```{r}
+## Data analysis: bar, end of phase plots by treatment
+## same as above, in bar plot summarized form at the end of the experiment
+end_cumul_q3_sc_all <- data_strat_scaled_all %>% 
+  filter(exp_count == max(exp_count))
+
+end_cumul_q3_sc_all %>% 
+  group_by(trt) %>% 
+  summarize(mean_cumul_c_p = mean(cumul_gross_phase_scaled),
+            se_cumul_c_p = se(cumul_gross_phase_scaled),
+            ghop_fate = first(ghop_fate),
+            pred_prod = first(pred_prod)) %>% 
+  ggplot(aes(x = trt, 
+             y = mean_cumul_c_p, 
+             fill = trt,
+             label = pred_prod),
+         group = interaction(ghop_fate, pred_prod)) + 
+  geom_col(position = 'dodge', color = 'black')+
+  geom_errorbar(aes( ymin = mean_cumul_c_p - se_cumul_c_p, 
+                     ymax = mean_cumul_c_p + se_cumul_c_p,
+                     width = 0.15)) +
+  geom_jitter(data = end_cumul_q3_sc_all, 
+              aes(x = trt, y= cumul_gross_phase_scaled, group = ghop_fate),
+              width = 0.2) +
+  scale_fill_viridis(name = 'Treatment', discrete = TRUE) +
+  # scale_x_discrete(labels= bar_x_labels) +
+  scale_x_discrete(labels = c('mantid remains', 'mantid waste', 'spider remains', 'spider waste')) +
+  labs(title = 'C mineralized cumulatively by treatment, scaled, all phases',
+       x = '\nTreatment',
+       y = 'C mineralization (mg)\n',
+       color = 'Treatment') +
+  theme_dyn
+
+```
+
+##### Stats: ANOVA (shapiro p << 0.001) 
+
+First try an ANOVA, and check for normality.
+
+```{r}
+outliers_q3_sc_all <- end_cumul_q3_sc_all %>% 
+  # group_by(trt) %>%
+  rstatix::identify_outliers(cumul_gross_phase_scaled)
+# View(outliers_q3_sc_all)
+## the four mantid treatments are all extreme outliers
+
+aov_strat_scaled_all <- aov(cumul_gross_phase_scaled ~ ghop_fate * pred_prod, end_cumul_q3_sc_all)
+
+summary(aov_strat_scaled_all)
+
+ggqqplot(residuals(aov_strat_scaled_all))
+rstatix::shapiro_test(residuals(aov_strat_scaled_all))
+```
+
+Very not normal. Trying ART ANOVA.
+
+
+##### ___Stats: ART ANOVA (ghop_fate p = 0.049, pred_prod p = 0.073, ghop_fate:pred_prod p = 0.0002)
+
+Aligned Rank Transformation ANOVA: a non-parametric two-way factor test. 
+
+```{r echo=TRUE}
+art_strat_sc_all <- art(cumul_gross_phase_scaled ~ ghop_fate * pred_prod, end_cumul_q3_sc_all)
+
+anova(art_strat_sc_all)
+```
+
+
+###### Posthoc: estimate = 27.2 for remains - excreta comparison)
+
+```{r}
+art.con(art_strat_sc_all, "ghop_fate:pred_prod", interaction = T, adjust = "bonferroni") %>%
+  summary() %>%
+  mutate(sig. = symnum(p.value, corr = FALSE, na = FALSE,
+                       cutpoints = c(0, 0.001, 0.01, 0.05, 0.1, 1),
+                       symbols = c("***", "**", "*", ".", " ")))
+```
+
+Not all contrasts present... possibly due estimates being too low?
+
+Without MR: 
+Singularity issues, so there aren't any estimates. 
+
+
+### B) Phase 1... scaled
+
+#### Phase 1 dynamic plots
+
+This is a plot of the CO2 respiration of each relevant treatment during phase 1.
+
+```{r}
+## the dynamic, summarized plot of cumulative C
+## PHASE 1
+data_strat_scaled_p1 <- cumul_data %>%
+  group_by(trt, rep) %>%
+  filter(phase == 1,
+         group_compute == 2) %>% 
+         # trt != 'MR') %>%
+  mutate(cumul_c_gross_phase = cumsum(infer_tube_total_daily),
+         cumul_gross_phase_scaled = cumul_c_gross_phase / trt_added_mass) %>%
+  ungroup()
+  
+dyn_cumul_q3_sc_p1 <- data_strat_scaled_p1 %>% 
+  group_by(trt, exp_count) %>% 
+  summarize(mean_cumul_c_p = mean(cumul_gross_phase_scaled),
+            se_cumul_c_p = se(cumul_gross_phase_scaled),
+            ghop_fate = first(ghop_fate),
+            phase_count = first(phase_count)) %>% 
+  ggplot(aes(x = exp_count, 
+             y = mean_cumul_c_p, 
+             group = trt)) +
+  geom_line(aes(color = trt)) +
+  # geom_errorbar(aes(ymin = mean_cumul_c_p - se_cumul_c_p,
+                 # ymax = mean_cumul_c_p + se_cumul_c_p)) + 
+  scale_color_viridis(name = 'Treatment', discrete = TRUE) +
+  labs(title = 'C mineralized cumulatively by each tube, scaled, phase 1 only',
+       x = 'Incubation Day',
+       y = 'C mineralization (mg)',
+       color = 'Treatment') +
+  theme_dyn
+
+ggplotly(dyn_cumul_q3_sc_p1)
+```
+
+
+#### End of phase 1 
+
+The analyses we'll do will be on the statistics at the end of each phase and over the entire experiment. Here are the data for phase 1.
+
+```{r}
+## Data analysis: bar, end of phase plots by treatment
+## same as above, in bar plot summarized form at the end of the experiment
+end_cumul_q3_sc_p1 <- data_strat_scaled_p1 %>% 
+  filter(exp_count == max(exp_count))
+
+end_cumul_q3_sc_p1 %>% 
+  group_by(trt) %>% 
+  summarize(mean_cumul_c_p = mean(cumul_gross_phase_scaled),
+            se_cumul_c_p = se(cumul_gross_phase_scaled),
+            ghop_fate = first(ghop_fate),
+            pred_prod = first(pred_prod)) %>% 
+  ggplot(aes(x = trt, 
+             y = mean_cumul_c_p, 
+             fill = trt)) +
+  geom_col(position = 'dodge',
+           color = 'black')+
+  geom_errorbar(aes( ymin = mean_cumul_c_p - se_cumul_c_p, 
+                     ymax = mean_cumul_c_p + se_cumul_c_p,
+                     width = 0.15)) +
+  geom_jitter(data = end_cumul_q3_sc_p1, 
+              aes(x = trt, y= cumul_gross_phase_scaled, group = ghop_fate),
+              width = 0.2) +
+  scale_fill_viridis(name = 'Treatment', discrete = TRUE) +
+  # scale_x_discrete(labels= bar_x_labels) +
+  scale_x_discrete(labels = c('mantid remains', 'mantid waste', 'spider remains', 'spider waste')) +
+  labs(title = 'C mineralized cumulatively by treatment, phase 1 only',
+       x = 'Treatment',
+       y = 'C mineralization (mg)',
+       color = 'Treatment') +
+  theme_dyn
+```
+
+
+##### Stats: ANOVA 
+###### with MR: (shapiro << 0.001) (ghop_fate:pred_prod p = 0.001 F = 13.272)
+
+First I tried an ANOVA, and checked for normality since I figure it won't be very normal.
+
+```{r}
+outliers_q3_sc_p1 <- end_cumul_q3_sc_p1 %>% 
+  # group_by(trt) %>%
+  rstatix::identify_outliers(cumul_gross_phase_scaled)
+# View(outliers_q3_sc_p1) ## no outliers
+
+## dataset with outlier removed
+# end_cumul_q3_sc_p1_out <- anti_join(end_cumul_q3_sc_p1, select(outliers_q3_sc_p1, tube_id))
+                                   
+aov_strat_scaled_p1 <- aov(cumul_gross_phase_scaled ~ ghop_fate*pred_prod,
+                           end_cumul_q3_sc_p1) # end_cumul_q3_sc_p1_out)
+
+summary(aov_strat_scaled_p1)
+ggqqplot(residuals(aov_strat_scaled_p1))
+
+rstatix::shapiro_test(residuals(aov_strat_scaled_p1))
+```
+
+__**With mantid remains treatment:**__
+Shapiro wilks << 0.001, got some extreme heteroscedasticity.
+
+Under the current model, mantid remains has the largest effect by mass, with spider wastes as #2, then spider remains and finally mantid wastes.  
+
+If we remove the outliers (using the dataset without the four extreme outliers), ghop_fate becomes very significant (p = 0.015), and pred_prod is slightly more significant, while the interaction is still very significant. The ranking then becomes:
+spider waste, 
+mantid remains, 
+mantid waste, 
+and spider remains. 
+
+This makes more sense. 
+
+###### Without MR: ghop fate p = 0.001, pred_prod p << 0.001
+
+shapiro wilks = 0.0003
+
+ghop_fate p= 0.001
+pred_prod p << 0.001
+
+no interaction term because it's not a 2x2 
+
+
+##### ***Stats: ART ANOVA 
+###### With MR: (pred prod p = 0.084, F = 3.1254, ghop_fate:pred_prod p=0.0001, F= 18.0046)
+
+Aligned Rank Transformation ANOVA: a non-parametric two-way factor test. 
+
+```{r echo=TRUE}
+art_strat_scaled_p1 <- art(cumul_gross_phase_scaled ~ ghop_fate * pred_prod, end_cumul_q3_sc_p1)
+
+anova(art_strat_scaled_p1)
+```
+
+__**With mantid remains treatment:**__
+
+Looking at the ART model, it gives the warning:
+"F values of ANOVAs on aligned responses not of interest are not all ~0. ART may not be appropriate."
+
+Hmmm.
+
+Regarding the results they give, the effect of predator product type is weakly significant, while the interaction effect is very significant. 
+
+With the extreme outliers removed, we see the same effect in the ART ANOVA, where the ghop fate becomes very significant and pred_prod remains non-significant.
+
+
+###### Posthoc:
+###### with MR: estimate = 7.92 for remains - excreta comparison)
+
+```{r}
+## alternatives to try the contrasts
+# art.con(art_strat_scaled_p1, "ghop_fate:pred_prod")
+# 
+# contrast(emmeans(artlm.con(art_strat_scaled_p1, "ghop_fate:pred_prod"), ~ ghop_fatepred_prod), method = "pairwise")
+
+
+art.con(art_strat_scaled_p1, "ghop_fate:pred_prod", interaction = T, adjust = "bonferroni") %>%
+  summary() %>%
+  mutate(sig. = symnum(p.value, corr = FALSE, na = FALSE,
+                       cutpoints = c(0, 0.001, 0.01, 0.05, 0.1, 1),
+                       symbols = c("***", "**", "*", ".", " ")))
+```
+
+__**With mantid remains treatment:**__
+
+So this interaction significance is mainly driven by difference between mantid remains and spider excreta? (still missing for the contrasts on the other interaction terms)
+
+
+**PROCEED TO DATA INTERPRETATION WITH CAUTION**
+
+---Results
+For the scaled mineralization values in phase 1, mantid remains had the highest means (and large variability, due to four extreme outliers that had very small amounts of treatment mass left behind). 
+
+Predator products were weakly significant (likely due to these outliers, since the order of the treatments with the highest scaled response was mantid remains, spider excreta, widow remains, and then mantid excreta)
+
+---Discussion
+
+Mantid remains really skew the data here from the four outliers. If we remove the remains treatment, we see that spider wastes have the greatest effect on function per gram of waste products. 
+
+
+### C) Phase 2... scaled
+
+Here we want to compare how the decomposition of 500mg of plant litter is affected by the phase 1 deposition of animal necromass.
+
+#### Phase 2 dynamic plots, plant necromass decomposition
+
+This is comparing the overall effect of predators in phase 2. 
+
+Treatments: G, MA, WA
+
+```{r}
+## the dynamic, summarized plot of cumulative C
+## PHASE 2
+data_strat_scaled_p2 <- cumul_data %>%
+  group_by(trt, rep) %>%
+  filter(phase == 2,
+         group_compute == 2) %>% 
+         # trt != 'MR') %>%
+  mutate(cumul_c_gross_phase = cumsum(infer_tube_total_daily),
+         cumul_gross_phase_scaled = cumul_c_gross_phase / trt_added_mass) %>%
+  ungroup() 
+
+dyn_cumul_q3_sc_p2 <- data_strat_scaled_p2 %>% 
+  group_by(trt, exp_count) %>% 
+  summarize(mean_cumul_c_p = mean(cumul_gross_phase_scaled),
+            se_cumul_c_p = se(cumul_gross_phase_scaled),
+            ghop_fate = first(ghop_fate),
+            pred_prod = first(pred_prod)) %>% 
+  ggplot(aes(x = exp_count, 
+             y = mean_cumul_c_p, 
+             group = trt)) +
+  geom_line(aes(color = trt,
+                linetype = ghop_fate)) +
+  # geom_point(aes(shape = pred_prod)) + 
+  scale_color_viridis(name = 'Treatment', discrete = TRUE) +
+  labs(title = 'C mineralized cumulatively by each tube, phase 2 only',
+       x = 'Incubation Day',
+       y = 'C mineralization (mg)',
+       color = 'Treatment') +
+  theme_dyn
+
+ggplotly(dyn_cumul_q3_sc_p2)
+```
+
+#### End of phase 2 
+
+Here are the scaled data for phase 2.
+
+```{r}
+## Data analysis: bar, end of phase plots by treatment
+## same as above, in bar plot summarized form at the end of the experiment
+end_cumul_q3_sc_p2 <- data_strat_scaled_p2 %>% 
+  filter(exp_count == max(exp_count))
+
+end_cumul_q3_sc_p2 %>% 
+  group_by(trt) %>% 
+  summarize(mean_cumul_c_p = mean(cumul_gross_phase_scaled),
+            se_cumul_c_p = se(cumul_gross_phase_scaled),
+            ghop_fate = first(ghop_fate),
+            pred_prod = first(pred_prod)) %>% 
+  ggplot(aes(x = trt, 
+             y = mean_cumul_c_p, 
+             fill = trt,
+             label = pred_prod)) +
+  geom_col(position = 'dodge',
+           color = 'black')+
+  geom_errorbar(aes( ymin = mean_cumul_c_p - se_cumul_c_p, 
+                     ymax = mean_cumul_c_p + se_cumul_c_p,
+                     width = 0.15)) +
+  geom_jitter(data = end_cumul_q3_sc_p2, aes(x = trt, y= cumul_gross_phase_scaled, group = ghop_fate)) +
+  scale_fill_viridis(name = 'Treatment', discrete = TRUE) +
+  # scale_x_discrete(labels= bar_x_labels) +
+  scale_x_discrete(labels = c('mantid, remains', 'mantid, waste', 'spider, waste', 'spider, waste')) +
+  labs(title = 'C mineralized cumulatively by treatment, phase 2 only',
+       x = 'Treatment',
+       y = 'C mineralization (mg)',
+       color = 'Treatment') +
+  theme_dyn
+```
+
+
+##### ___Stats: ANOVA 
+##### with MR: (shapiro p <<< 0.001) (interaction effect p = 0.002, F = 11.170)
+
+First try an ANOVA, and check for normality.
+
+```{r}
+outliers_q3_sc_p2 <- end_cumul_q3_sc_p2 %>% 
+  # group_by(trt) %>%
+  rstatix::identify_outliers(cumul_gross_phase_scaled)
+# View(outliers_q3_sc_p2) ## WW.04 is a non-extreme outlier
+
+aov_strat_scaled_p2 <- aov(cumul_gross_phase_scaled ~ ghop_fate * pred_prod, end_cumul_q3_sc_p2)
+
+summary(aov_strat_scaled_p2)
+ggqqplot(residuals(aov_strat_scaled_p2))
+
+rstatix::shapiro_test(residuals(aov_strat_scaled_p2))
+```
+
+Shapiro wilks p <<< 0.001
+
+When unscaled, date from phase 2 are quite normal. When scaled to biomass however, it gets crazy unnormal. This may be due to the lower limit of the data (biomass can't be below zero), and 
+
+
+##### Post-hoc: Tukey HSD for the estimate
+
+```{r}
+rstatix::tukey_hsd(aov_strat_scaled_p2) %>%     # arrange(group2) %>% 
+  knitr::kable()
+```
+
+Two interactino contrasts were significant: 
+mantid remains and spider remains were sig. different (p.adj = 0.006, estimate = -3987541)
+mantid remains and mantid excreta were sig. different (p.adj = 0.005, estimate = -4017543)
+
+Probably won't use this.
+
+##### ___Stats: ART ANOVA (ghop_fate p = 0.049, pred_prod p=0.073, interaction p= 0.0002)
+
+Aligned Rank Transformation ANOVA: a non-parametric two-way factor test. 
+
+```{r echo=TRUE}
+art_strat_scaled_p2 <- art(cumul_gross_phase_scaled ~ ghop_fate * pred_prod, end_cumul_q3_sc_p2)
+
+anova(art_strat_scaled_p2)
+```
+
+
+
+
+###### Posthoc: estimate = 7.92 for remains - excreta comparison)
+
+```{r}
+art.con(art_strat_scaled_p2, "ghop_fate:pred_prod", interaction = T, adjust = "bonferroni") %>%
+  summary() %>%
+  mutate(sig. = symnum(p.value, corr = FALSE, na = FALSE,
+                       cutpoints = c(0, 0.001, 0.01, 0.05, 0.1, 1),
+                       symbols = c("***", "**", "*", ".", " ")))
+```
+
+
+
+
+---Results:
+In phase 2, during the decomposition of plant matter, when the response was scaled to the treatment added mass, the data were very non-normal and only the interaction effect was significant (although I didn't manage to get the stats for the contrasts)
 
 
